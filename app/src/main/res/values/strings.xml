@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Spheres</string>
-    <string name="title">spheres</string>
+    <string name="app_name" translatable="false">Spheres</string>
+    <string name="title" translatable="false">spheres</string>
     <string name="subtitle">connect the dots</string>
     <string name="mode_timed">Timed · 60 s</string>
     <string name="mode_moves">Moves · 30</string>
