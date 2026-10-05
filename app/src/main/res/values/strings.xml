@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Spheres</string>
+    <string name="title">spheres</string>
+    <string name="subtitle">connect the dots</string>
+    <string name="mode_timed">Timed · 60 s</string>
+    <string name="mode_moves">Moves · 30</string>
+    <string name="mode_endless">Endless</string>
+    <string name="best_score">Best: %1$d</string>
+    <string name="no_score">No score yet</string>
+    <string name="sound_on">Sound: on</string>
+    <string name="sound_off">Sound: off</string>
+    <string name="label_time">Time</string>
+    <string name="label_moves_left">Moves</string>
+    <string name="label_moves">Moves</string>
+    <string name="label_score">Score</string>
+    <string name="back">Back</string>
+    <string name="game_over">Game over</string>
+    <string name="new_best">New best!</string>
+    <string name="play_again">Play again</string>
+    <string name="menu">Menu</string>
+    <string name="how_to">Connect dots of the same color. Close a square to clear every dot of that color.</string>
+</resources>
