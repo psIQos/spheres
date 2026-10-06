@@ -110,6 +110,25 @@ class BoardTest {
     }
 
     @Test
+    fun reachingAnEarlierDotUndoesEverythingAfterIt() {
+        val b = board(
+            "0000",
+            "1212",
+            "2121",
+            "1212",
+        )
+        b.begin(Cell(0, 0))
+        b.extend(Cell(0, 1))
+        b.extend(Cell(0, 2))
+        b.extend(Cell(0, 3))
+        // (0,2) was skipped, e.g. by a fast swipe back
+        assertTrue(b.extend(Cell(0, 1)))
+        assertEquals(listOf(Cell(0, 0), Cell(0, 1)), b.path)
+        assertTrue(b.extend(Cell(0, 2)))
+        assertEquals(3, b.path.size)
+    }
+
+    @Test
     fun cannotReuseSegment() {
         val b = board(
             "0012",

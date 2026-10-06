@@ -218,6 +218,37 @@ def check_anrs(phase):
         results.append(f"info ignored ANRs of other processes during {phase}: {anrs}")
 
 
+def backtrack_test():
+    """Draws a path, swipes back over it sloppily (offset sideways) and releases on the
+    second dot: only the first two dots may be removed (issue #2)."""
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return
+    pos = geometry(nodes)
+    cell = pos(0, 1)[0] - pos(0, 0)[0]
+    grid = read_board(screencap(), pos)
+    path = longest_path(grid, limit=6)
+    if not check(len(path) >= 4, f"backtrack: found a path of {len(path)} >= 4 dots"):
+        return
+    before = int(text(nodes, "score_value") or 0)
+    forward = [pos(r, c) for r, c in path]
+    back = []
+    for (r0, c0), (r1, c1) in zip(reversed(path[1:]), reversed(path[:-1])):
+        # Offset perpendicular to the segment by 0.4 cells, like a hurried finger.
+        ox, oy = (0, 0.4 * cell) if r0 == r1 else (0.4 * cell, 0)
+        for k in (1, 2):  # two samples per segment
+            x = pos(r0, c0)[0] + (pos(r1, c1)[0] - pos(r0, c0)[0]) * k / 2 + ox
+            y = pos(r0, c0)[1] + (pos(r1, c1)[1] - pos(r0, c0)[1]) * k / 2 + oy
+            back.append((int(x), int(y)))
+        if (r1, c1) == path[1]:
+            break
+    drag(forward + back, hold="09-backtrack")
+    time.sleep(1.2)
+    nodes = dump()
+    after = text(nodes, "score_value")
+    check(after == str(before + 2), f"backtrack over {len(path)} dots back to the 2nd: score {before} -> {after}, expected +2")
+
+
 def crash_log():
     log = adb("logcat", "-d", "-b", "crash")
     return "\n".join(l for l in log.splitlines() if PKG in l or "FATAL" in l)
@@ -345,6 +376,8 @@ def main():
     tap(nodes["mode_endless"])
     time.sleep(2.5)
     shot("08-endless")
+    if SDK >= 29:
+        backtrack_test()
     sh("input keyevent 4")
     time.sleep(1)
 

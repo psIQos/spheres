@@ -65,8 +65,8 @@ class Board(
     }
 
     /**
-     * Tries to extend the path to [cell]. Moving back onto the previous cell undoes the
-     * last step. Returns true if the path changed.
+     * Tries to extend the path to [cell]. Moving back onto an earlier cell of the path
+     * undoes the steps after it. Returns true if the path changed.
      */
     fun extend(cell: Cell): Boolean {
         if (_path.isEmpty() || !contains(cell)) return false
@@ -76,11 +76,22 @@ class Board(
             _path.removeAt(_path.size - 1)
             return true
         }
-        if (!cell.isAdjacentTo(last) || this[cell] != pathColor) return false
+        if (!cell.isAdjacentTo(last) || this[cell] != pathColor) return backtrackTo(cell)
         if (hasSegment(last, cell)) return false
         // A dot can be revisited only to close a loop; it may not be passed through twice.
         if (_path.count { it == cell } >= 2) return false
         _path.add(cell)
+        return true
+    }
+
+    /**
+     * The finger reached a dot further back on the path, e.g. when swiping back fast
+     * and missing a dot in between: undo everything after it.
+     */
+    private fun backtrackTo(cell: Cell): Boolean {
+        val index = _path.lastIndexOf(cell)
+        if (index < 0 || index > _path.size - 3) return false
+        while (_path.size > index + 1) _path.removeAt(_path.size - 1)
         return true
     }
 

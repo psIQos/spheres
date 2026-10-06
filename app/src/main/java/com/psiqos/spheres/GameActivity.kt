@@ -79,7 +79,7 @@ class GameActivity : Activity(), GameView.Listener {
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
 
         Sound.enabled = Prefs.soundEnabled(this)
-        Sound.load()
+        Sound.load(this)
         gameView.listener = this
         restart()
     }

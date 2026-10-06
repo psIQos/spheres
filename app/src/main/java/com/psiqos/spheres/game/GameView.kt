@@ -11,7 +11,6 @@ import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
-import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 
@@ -43,6 +42,8 @@ class GameView @JvmOverloads constructor(
     var board = Board()
         private set
 
+    private var tracker = PathTracker(board)
+
     private var touched = false
 
     private val density = resources.displayMetrics.density
@@ -62,8 +63,6 @@ class GameView @JvmOverloads constructor(
     private var squareFlashStart = 0L
     private var squareFlashColor = 0
 
-    private var fingerX = 0f
-    private var fingerY = 0f
     private var lastFrame = 0L
 
     private val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -83,6 +82,11 @@ class GameView @JvmOverloads constructor(
 
     fun newGame() {
         board = Board()
+        tracker = PathTracker(board).also {
+            it.originX = originX
+            it.originY = originY
+            it.cellSize = cellSize
+        }
         touched = false
         effects.clear()
         squareFlashStart = 0L
@@ -105,6 +109,9 @@ class GameView @JvmOverloads constructor(
         cellSize = available / max(board.rows, board.cols)
         originX = (w - cellSize * board.cols) / 2f
         originY = (h - cellSize * board.rows) / 2f
+        tracker.originX = originX
+        tracker.originY = originY
+        tracker.cellSize = cellSize
         dotRadius = cellSize * 0.2f
         linePaint.strokeWidth = dotRadius * 0.55f
         framePaint.strokeWidth = 10 * density
@@ -113,23 +120,12 @@ class GameView @JvmOverloads constructor(
     private fun centerX(col: Int) = originX + (col + 0.5f) * cellSize
     private fun centerY(row: Int) = originY + (row + 0.5f) * cellSize
 
-    private fun cellAt(x: Float, y: Float, tolerance: Float): Cell? {
-        val col = ((x - originX) / cellSize).toInt()
-        val row = ((y - originY) / cellSize).toInt()
-        if (x < originX || y < originY) return null
-        val cell = Cell(row, col)
-        if (!board.contains(cell)) return null
-        val d = hypot(x - centerX(col), y - centerY(row))
-        return if (d <= cellSize * tolerance) cell else null
-    }
-
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!inputEnabled) return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
-                val cell = cellAt(event.x, event.y, 0.6f)
-                if (cell != null) beginAt(cell, event.x, event.y)
+                tracker.begin(event.x, event.y)?.let(::onBegin)
             }
             MotionEvent.ACTION_MOVE -> {
                 track(event)
@@ -158,35 +154,15 @@ class GameView @JvmOverloads constructor(
         trackTo(event.x, event.y)
     }
 
-    private fun trackTo(toX: Float, toY: Float) {
-        if (board.path.isEmpty()) {
-            // The finger went down between dots: start once it reaches one.
-            val cell = cellAt(toX, toY, 0.36f)
-            if (cell != null) beginAt(cell, toX, toY)
-            return
-        }
-        // Sample the movement so fast swipes don't skip over dots.
-        val dx = toX - fingerX
-        val dy = toY - fingerY
-        val steps = max(1, (hypot(dx, dy) / (cellSize / 4f)).toInt())
-        for (i in 1..steps) {
-            val cell = cellAt(fingerX + dx * i / steps, fingerY + dy * i / steps, 0.36f) ?: continue
-            val wasSquare = board.isSquare
-            val before = board.path.size
-            if (board.extend(cell)) onPathStep(before, wasSquare)
-        }
-        fingerX = toX
-        fingerY = toY
+    private fun trackTo(x: Float, y: Float) {
+        tracker.moveTo(x, y, ::onPathStep)?.let(::onBegin)
     }
 
-    private fun beginAt(cell: Cell, x: Float, y: Float) {
+    private fun onBegin(cell: Cell) {
         if (!touched) {
             touched = true
             listener?.onFirstTouch()
         }
-        board.begin(cell)
-        fingerX = x
-        fingerY = y
         addPulse(cell)
         listener?.onPathChanged(board.path.size, false)
         Sound.playNote(0)
@@ -310,7 +286,7 @@ class GameView @JvmOverloads constructor(
             linePath.reset()
             linePath.moveTo(centerX(path[0].col), centerY(path[0].row))
             for (i in 1 until path.size) linePath.lineTo(centerX(path[i].col), centerY(path[i].row))
-            linePath.lineTo(fingerX, fingerY)
+            linePath.lineTo(tracker.fingerX, tracker.fingerY)
             canvas.drawPath(linePath, linePaint)
         }
 
