@@ -132,29 +132,12 @@ class GameView @JvmOverloads constructor(
                 if (cell != null) beginAt(cell, event.x, event.y)
             }
             MotionEvent.ACTION_MOVE -> {
-                if (board.path.isEmpty()) {
-                    // The finger went down between dots: start once it reaches one.
-                    val cell = cellAt(event.x, event.y, 0.36f)
-                    if (cell != null) beginAt(cell, event.x, event.y)
-                    return true
-                }
-                // Sample the movement so fast swipes don't skip over dots.
-                val dx = event.x - fingerX
-                val dy = event.y - fingerY
-                val steps = max(1, (hypot(dx, dy) / (cellSize / 4f)).toInt())
-                for (i in 1..steps) {
-                    val x = fingerX + dx * i / steps
-                    val y = fingerY + dy * i / steps
-                    val cell = cellAt(x, y, 0.36f) ?: continue
-                    val wasSquare = board.isSquare
-                    val before = board.path.size
-                    if (board.extend(cell)) onPathStep(before, wasSquare)
-                }
-                fingerX = event.x
-                fingerY = event.y
+                track(event)
                 invalidate()
             }
             MotionEvent.ACTION_UP -> {
+                // A fast flick can deliver its end point only with the UP event.
+                if (board.path.isNotEmpty()) track(event)
                 val result = board.commit()
                 listener?.onPathChanged(0, false)
                 if (result != null) onCommitted(result)
@@ -167,6 +150,33 @@ class GameView @JvmOverloads constructor(
             }
         }
         return true
+    }
+
+    /** Follows the finger through all positions of [event], including batched historical ones. */
+    private fun track(event: MotionEvent) {
+        for (h in 0 until event.historySize) trackTo(event.getHistoricalX(h), event.getHistoricalY(h))
+        trackTo(event.x, event.y)
+    }
+
+    private fun trackTo(toX: Float, toY: Float) {
+        if (board.path.isEmpty()) {
+            // The finger went down between dots: start once it reaches one.
+            val cell = cellAt(toX, toY, 0.36f)
+            if (cell != null) beginAt(cell, toX, toY)
+            return
+        }
+        // Sample the movement so fast swipes don't skip over dots.
+        val dx = toX - fingerX
+        val dy = toY - fingerY
+        val steps = max(1, (hypot(dx, dy) / (cellSize / 4f)).toInt())
+        for (i in 1..steps) {
+            val cell = cellAt(fingerX + dx * i / steps, fingerY + dy * i / steps, 0.36f) ?: continue
+            val wasSquare = board.isSquare
+            val before = board.path.size
+            if (board.extend(cell)) onPathStep(before, wasSquare)
+        }
+        fingerX = toX
+        fingerY = toY
     }
 
     private fun beginAt(cell: Cell, x: Float, y: Float) {

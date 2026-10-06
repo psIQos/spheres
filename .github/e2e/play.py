@@ -248,6 +248,8 @@ def main():
     shot("02-board")
 
     expected = 0
+    observed = 0
+    moves_left = 30
     squares = 0
     took_drag_shot = False
     for move in range(30):
@@ -283,18 +285,26 @@ def main():
         if move == 14:
             shot("04-midgame")
         if move < 29:
+            # Compare with the previous reading, so one lost move is reported once
+            # instead of shifting every later comparison.
             nodes = dump()
-            check(text(nodes, "score_value") == str(expected),
+            score, left = text(nodes, "score_value"), text(nodes, "limit_value")
+            check(score == str(observed + gain),
                   f"move {move + 1} ({'square' if square else f'{len(path)} dots'}): "
-                  f"score {text(nodes, 'score_value')} == {expected}")
-            check(text(nodes, "limit_value") == str(29 - move),
-                  f"move {move + 1}: moves left {text(nodes, 'limit_value')} == {29 - move}")
+                  f"score {score} == {observed} + {gain}")
+            check(left == str(moves_left - 1), f"move {move + 1}: moves left {left} == {moves_left - 1}")
+            if score is not None and score.isdigit():
+                observed = int(score)
+            if left is not None and left.isdigit():
+                moves_left = int(left)
+        else:
+            observed += gain
     print(f"played moves, {squares} squares, expected score {expected}")
 
     time.sleep(1.5)
     nodes = dump()
     check("play_again" in nodes, "game over screen shown")
-    check(text(nodes, "final_score") == str(expected), f"final score {text(nodes, 'final_score')} == {expected}")
+    check(text(nodes, "final_score") == str(observed), f"final score {text(nodes, 'final_score')} == {observed}")
     shot("05-gameover")
 
     if "play_again" not in nodes:
@@ -307,7 +317,7 @@ def main():
     time.sleep(1.5)
     nodes = wait_for("best_moves")
     best = text(nodes, "best_moves") or ""
-    check(str(expected) in best, f"menu shows best score ({best})")
+    check(str(observed) in best, f"menu shows best score ({best})")
     shot("06-menu-best")
 
     # --- Timed mode: clock waits for the first touch ------------------------------
