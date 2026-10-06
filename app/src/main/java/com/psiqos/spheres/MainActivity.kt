@@ -16,6 +16,13 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // When the app was first opened in another way (e.g. "Open" right after installing),
+        // tapping the launcher icon later starts a second menu on top of a running game
+        // instead of bringing the game back. Close it again so the game shows.
+        if (!isTaskRoot && intent.action == Intent.ACTION_MAIN && intent.hasCategory(Intent.CATEGORY_LAUNCHER)) {
+            finish()
+            return
+        }
         setContentView(R.layout.activity_main)
 
         for ((mode, buttonId, bestId) in modes) {

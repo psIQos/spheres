@@ -359,7 +359,7 @@ def resume_test():
 
     sh(f"am force-stop {PKG}")
     time.sleep(1)
-    sh(f"am start -W -n {PKG}/.MainActivity")
+    launch()
     time.sleep(2)
     nodes = wait_for("best_endless")
     check(score is not None and score in (text(nodes, "best_endless") or ""),
@@ -529,6 +529,11 @@ def difficulty_test(normal_best):
     set_board(6, 5)
 
 
+def launch():
+    """Starts the app the way the launcher icon does."""
+    sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
+
+
 def crash_log():
     log = adb("logcat", "-d", "-b", "crash")
     return "\n".join(l for l in log.splitlines() if PKG in l or "FATAL" in l)
@@ -539,6 +544,8 @@ def main():
     adb("logcat", "-c")
     out = subprocess.run(["adb", "install", "-r", APK], capture_output=True, text=True)
     check("Success" in out.stdout, f"install: {out.stdout.strip()} {out.stderr.strip()}")
+    # Deliberately not like the launcher (as "Open" after installing): coming back via the
+    # launcher icon later must still return to the running game.
     sh(f"am start -W -n {PKG}/.MainActivity")
     time.sleep(2)
 
@@ -617,7 +624,7 @@ def main():
     time.sleep(1)
     away = text(dump(), "limit_value")  # None: launcher in front
     time.sleep(3)
-    sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
+    launch()
     time.sleep(2)
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
