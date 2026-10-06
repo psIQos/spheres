@@ -18,10 +18,21 @@ Für jeden Modus wird ein Rekord gespeichert. Mit Ton (synthetisierte, ansteigen
 
 ## Installieren
 
-Die APK baut GitHub Actions bei jedem Push (Workflow „Build APK“, Artefakt `spheres-apk`).
-Ein Tag `v*` (z. B. `v1.0`) veröffentlicht die APK zusätzlich als GitHub-Release.
+Fertige APKs liegen unter **Releases** (`spheres-<version>.apk`). Auf dem Handy die Release-Seite öffnen
+(das Repo ist privat, also vorher im Browser bei GitHub anmelden), die APK unter *Assets* antippen, öffnen
+und „Apps aus dieser Quelle zulassen“ bestätigen. Benötigt Android 8.0 oder neuer.
+Neue Versionen lassen sich darüber installieren, Rekorde bleiben erhalten.
 
-Auf dem Handy die `spheres.apk` öffnen und „Installation aus unbekannten Quellen“ erlauben. Benötigt Android 8.0 oder neuer.
+Zusätzlich baut GitHub Actions bei jedem Push die APK (Workflow „Build APK“, Artefakt `spheres-apk`).
+
+## Release erstellen
+
+1. `versionName` in `app/build.gradle.kts` setzen (bei Bedarf `versionCode` erhöhen), pushen und warten,
+   bis „Build APK“ und „Emulator test“ grün sind.
+2. Tag `v<versionName>` auf diesen Commit setzen und pushen, z. B. `git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1`.
+
+Der Workflow bricht ab, wenn Tag und `versionName` nicht übereinstimmen. Versionen mit Bindestrich
+(`-beta.1`, `-rc.1`) werden als Vorabversion (Pre-release) veröffentlicht.
 
 ## Selbst bauen
 
