@@ -208,6 +208,16 @@ def drag(points, hold=None):
         sh(f"input swipe {x0} {y0} {x1} {y1} 400")
 
 
+def check_anrs(phase):
+    log = adb("logcat", "-d", "-b", "main,system")
+    anrs = sorted({l.split("ANR in", 1)[1].strip() for l in log.splitlines() if "ANR in" in l})
+    ours = [a for a in anrs if a.startswith(PKG)]
+    check(not ours, f"no ANR of the app during {phase}" + (f": {ours}" if ours else ""))
+    if anrs and not ours:
+        print(f"ignored ANRs of other processes during {phase}: {anrs}", flush=True)
+        results.append(f"info ignored ANRs of other processes during {phase}: {anrs}")
+
+
 def crash_log():
     log = adb("logcat", "-d", "-b", "crash")
     return "\n".join(l for l in log.splitlines() if PKG in l or "FATAL" in l)
@@ -330,14 +340,21 @@ def main():
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))
+    check_anrs("scripted play")
 
     # --- Random input stress test ---------------------------------------------------
-    monkey = sh(f"monkey -v -p {PKG} --pct-syskeys 0 --throttle 20 -s 1234 5000")
-    tail = "\n".join(monkey.splitlines()[-5:])
-    check("Monkey finished" in monkey and "CRASH" not in monkey and "NOT RESPONDING" not in monkey,
-          f"monkey: 5000 random events without crash or ANR\n{tail}")
+    # Monkey would abort on any ANR, including ones of System UI, which the slow
+    # emulator produces now and then. Timeouts are therefore ignored here and ANRs
+    # of our app are detected from the system log instead.
+    adb("logcat", "-c")
+    monkey = sh(f"monkey -v -p {PKG} --pct-syskeys 0 --ignore-timeouts --throttle 20 -s 1234 5000")
+    lines = monkey.splitlines()
+    notable = [l for l in lines if re.search(r"CRASH|NOT RESPONDING|aborted|Exception|Error", l)]
+    check("Monkey finished" in monkey and not any("CRASH" in l for l in lines),
+          "monkey: 5000 random events without crash\n" + "\n".join((notable + lines[-3:])[:20]))
     crashes = crash_log()
     check(not crashes, "no crash after monkey" + (f":\n{crashes}" if crashes else ""))
+    check_anrs("monkey")
 
     return finish()
 
@@ -345,7 +362,8 @@ def main():
 def finish():
     # Annotations are cut at 4 KB: list failures and the non-repetitive checks only.
     shown = [r for r in results if not r.startswith("ok   move")]
-    annotate("notice", f"API {SDK}: {len(results) - len(failures)}/{len(results)} checks passed\n" + "\n".join(shown))
+    total = sum(1 for r in results if not r.startswith("info "))
+    annotate("notice", f"API {SDK}: {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
     return 1 if failures else 0
 
 
