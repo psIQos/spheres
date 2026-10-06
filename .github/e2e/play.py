@@ -5,10 +5,9 @@ runs a monkey stress test and fails on any crash.
 
 Usage: play.py <apk> <output-dir>
 
-Screenshots are written to <output-dir> and additionally printed to the log as
-base64 (lines starting with @@) so they can be inspected from the job log.
+Screenshots are written to <output-dir>; publish_shots.py makes them readable
+through the GitHub API.
 """
-import base64
 import io
 import os
 import re
@@ -67,15 +66,6 @@ def screencap():
 def shot(name, img=None):
     img = img or screencap()
     img.save(f"{OUT}/{name}.png")
-    # A small copy goes into a job annotation, so it can be viewed via the API
-    # without downloading artifacts (max. 10 notices per step, 64 KB each).
-    small = img.copy()
-    small.thumbnail((300, 700))
-    buf = io.BytesIO()
-    small.quantize(32).save(buf, "PNG", optimize=True)
-    data = base64.b64encode(buf.getvalue()).decode()
-    if len(data) < 60000:
-        print(f"::notice title=screenshot {SDK} {name}::{data}", flush=True)
 
 
 def dump():
@@ -92,6 +82,20 @@ def dump():
         time.sleep(1)
     print("warning: uiautomator dump failed: " + out[-200:], flush=True)
     return {}
+
+
+def wait_for(rid, timeout=15):
+    """Dumps the UI until a view with this id shows up."""
+    end = time.time() + timeout
+    nodes = {}
+    while time.time() < end:
+        nodes = dump()
+        if rid in nodes:
+            return nodes
+        time.sleep(1)
+    check(False, f"view '{rid}' did not appear (saw: {sorted(nodes)})")
+    shot(f"err-missing-{rid}")
+    return nodes
 
 
 def bounds(n):
@@ -205,7 +209,9 @@ def main():
     # --- Moves mode: play all 30 moves ---------------------------------------------
     tap(nodes["mode_moves"])
     time.sleep(2.5)
-    nodes = dump()
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return finish()
     check(text(nodes, "limit_value") == "30", f"moves start at 30 (got {text(nodes, 'limit_value')})")
     check(text(nodes, "score_value") == "0", "score starts at 0")
     pos = geometry(nodes)
@@ -264,11 +270,11 @@ def main():
         return finish()
     tap(nodes["play_again"])
     time.sleep(2.5)
-    nodes = dump()
+    nodes = wait_for("score_value")
     check(text(nodes, "score_value") == "0" and text(nodes, "limit_value") == "30", "play again resets HUD")
     sh("input keyevent 4")
     time.sleep(1.5)
-    nodes = dump()
+    nodes = wait_for("best_moves")
     best = text(nodes, "best_moves") or ""
     check(str(expected) in best, f"menu shows best score ({best})")
     shot("06-menu-best")
@@ -276,7 +282,9 @@ def main():
     # --- Timed mode: clock waits for the first touch ------------------------------
     tap(nodes["mode_timed"])
     time.sleep(3)
-    nodes = dump()
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return finish()
     check(text(nodes, "limit_value") == "60", f"timer waits for first touch ({text(nodes, 'limit_value')})")
     pos = geometry(nodes)
     grid = read_board(screencap(), pos)
@@ -292,7 +300,7 @@ def main():
     time.sleep(1)
 
     # --- Endless mode -------------------------------------------------------------
-    nodes = dump()
+    nodes = wait_for("mode_endless")
     tap(nodes["mode_endless"])
     time.sleep(2.5)
     shot("08-endless")
@@ -314,7 +322,9 @@ def main():
 
 
 def finish():
-    annotate("notice", f"API {SDK}: {len(results) - len(failures)}/{len(results)} checks passed\n" + "\n".join(results))
+    # Annotations are cut at 4 KB: list failures and the non-repetitive checks only.
+    shown = [r for r in results if not r.startswith("ok   move")]
+    annotate("notice", f"API {SDK}: {len(results) - len(failures)}/{len(results)} checks passed\n" + "\n".join(shown))
     return 1 if failures else 0
 
 
