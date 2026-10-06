@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 import time
+import traceback
 import xml.etree.ElementTree as ET
 
 from PIL import Image
@@ -28,12 +29,22 @@ PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0x
 ROWS = COLS = 6
 
 failures = []
+results = []
+
+
+def annotate(level, msg):
+    """GitHub workflow command; shows up as an annotation on the job."""
+    msg = msg.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    print(f"::{level}::{msg}", flush=True)
 
 
 def check(cond, msg):
-    print(("ok   " if cond else "FAIL ") + msg, flush=True)
+    line = ("ok   " if cond else "FAIL ") + msg
+    print(line, flush=True)
+    results.append(line)
     if not cond:
         failures.append(msg)
+        annotate("error", msg)
     return cond
 
 
@@ -300,11 +311,15 @@ def main():
 
 
 def finish():
-    print(f"\n{len(failures)} failure(s)")
-    for f in failures:
-        print("  - " + f)
+    annotate("notice", f"API {SDK}: {len(results) - len(failures)}/{len(results)} checks passed\n" + "\n".join(results))
     return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        code = main()
+    except Exception:
+        annotate("error", f"API {SDK}: script crashed\n{traceback.format_exc()}")
+        finish()
+        code = 1
+    sys.exit(code)
