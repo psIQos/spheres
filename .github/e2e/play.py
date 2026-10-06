@@ -67,15 +67,15 @@ def screencap():
 def shot(name, img=None):
     img = img or screencap()
     img.save(f"{OUT}/{name}.png")
+    # A small copy goes into a job annotation, so it can be viewed via the API
+    # without downloading artifacts (max. 10 notices per step, 64 KB each).
     small = img.copy()
-    small.thumbnail((360, 800))
+    small.thumbnail((300, 700))
     buf = io.BytesIO()
-    small.quantize(64).save(buf, "PNG", optimize=True)
+    small.quantize(32).save(buf, "PNG", optimize=True)
     data = base64.b64encode(buf.getvalue()).decode()
-    print(f"@@SHOT {name}")
-    for i in range(0, len(data), 8000):
-        print("@@B64 " + data[i:i + 8000])
-    print("@@END", flush=True)
+    if len(data) < 60000:
+        print(f"::notice title=screenshot {SDK} {name}::{data}", flush=True)
 
 
 def dump():
@@ -90,6 +90,7 @@ def dump():
                     nodes[rid.split("/")[-1]] = n
             return nodes
         time.sleep(1)
+    print("warning: uiautomator dump failed: " + out[-200:], flush=True)
     return {}
 
 
@@ -284,8 +285,8 @@ def main():
         drag([pos(r, c) for r, c in path])
     time.sleep(3)
     nodes = dump()
-    left = int(text(nodes, "limit_value") or 60)
-    check(left < 60, f"timer runs after first move ({left})")
+    left = text(nodes, "limit_value")
+    check(left is not None and int(left) < 60, f"timer runs after first move ({left})")
     shot("07-timed")
     sh("input keyevent 4")
     time.sleep(1)
@@ -302,8 +303,10 @@ def main():
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))
 
     # --- Random input stress test ---------------------------------------------------
-    monkey = sh(f"monkey -p {PKG} --pct-syskeys 0 --throttle 20 -s 1234 5000")
-    check("Monkey finished" in monkey and "CRASH" not in monkey, "monkey: 5000 random events without crash")
+    monkey = sh(f"monkey -v -p {PKG} --pct-syskeys 0 --throttle 20 -s 1234 5000")
+    tail = "\n".join(monkey.splitlines()[-5:])
+    check("Monkey finished" in monkey and "CRASH" not in monkey and "NOT RESPONDING" not in monkey,
+          f"monkey: 5000 random events without crash or ANR\n{tail}")
     crashes = crash_log()
     check(not crashes, "no crash after monkey" + (f":\n{crashes}" if crashes else ""))
 

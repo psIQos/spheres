@@ -131,18 +131,24 @@ class GameActivity : Activity(), GameView.Listener {
     }
 
     private fun updateHud() {
-        scoreValue.text = score.toString()
-        limitValue.text = when (mode) {
+        // Only touch the views when something changed; the timer calls this ten times a second.
+        setIfChanged(scoreValue, score.toString())
+        setIfChanged(limitValue, when (mode) {
             GameMode.TIMED -> ((remainingMs + 999) / 1000).toString()
             GameMode.MOVES -> (mode.limit - moves).toString()
             GameMode.ENDLESS -> moves.toString()
-        }
+        })
         val low = when (mode) {
             GameMode.TIMED -> remainingMs <= 10_000
             GameMode.MOVES -> mode.limit - moves <= 5
             GameMode.ENDLESS -> false
         }
-        limitValue.setTextColor(if (low) Palette.dot(0) else getColor(R.color.text_primary))
+        val color = if (low) Palette.dot(0) else getColor(R.color.text_primary)
+        if (limitValue.currentTextColor != color) limitValue.setTextColor(color)
+    }
+
+    private fun setIfChanged(view: TextView, text: String) {
+        if (view.text.toString() != text) view.text = text
     }
 
     private fun endGame() {
