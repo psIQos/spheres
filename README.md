@@ -15,7 +15,9 @@ Schließt du ein **Quadrat** (eine geschlossene Schleife), werden *alle* Punkte 
 | Endlos | ohne Limit                     |
 
 Mit „Pause“ oder der Zurück-Taste wird ein laufendes Spiel pausiert (Uhr steht). Der Spielstand wird je
-Modus gespeichert, auch wenn Android die App beendet, und lässt sich im Menü fortsetzen.
+Modus gespeichert, auch wenn Android die App beendet, und lässt sich im Menü fortsetzen. Wer die App
+verlässt und zurückkommt oder ein Spiel aus dem Menü fortsetzt, spielt direkt weiter; die Uhr läuft
+erst mit der nächsten Berührung weiter.
 
 ## Einstellungen
 

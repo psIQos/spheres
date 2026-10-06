@@ -93,7 +93,7 @@ class GameActivity : Activity(), GameView.Listener {
 
         val saved = Prefs.savedGame(this, mode)
         if (saved != null) {
-            // Continue where the player left, paused so no time is lost.
+            // Continue right where the player left; the clock waits for the next touch.
             setDifficulty(saved.difficulty)
             score = saved.score
             moves = saved.moves
@@ -101,7 +101,6 @@ class GameActivity : Activity(), GameView.Listener {
             timerStarted = saved.timerStarted
             gameView.newGame(difficulty.size, difficulty.colors, restore = saved.colors)
             updateHud()
-            pause()
         } else {
             restart()
         }
@@ -169,8 +168,9 @@ class GameActivity : Activity(), GameView.Listener {
         }
     }
 
+    /** First touch of a new or continued game: the clock (re)starts now. */
     override fun onFirstTouch() {
-        if (mode == GameMode.TIMED && !timerStarted) {
+        if (mode == GameMode.TIMED) {
             timerStarted = true
             startTicking()
         }
@@ -242,8 +242,11 @@ class GameActivity : Activity(), GameView.Listener {
 
     override fun onPause() {
         super.onPause()
-        // Home button, a call, ...: pause, so the clock stops and the game is saved.
-        if (!gameOver && !isFinishing) pause() else save()
+        // Home button, a call, ...: stop the clock and save. Coming back continues the
+        // game directly (no pause menu); the clock runs again with the next touch.
+        stopTicking()
+        save()
+        gameView.awaitTouch()
     }
 
     override fun onDestroy() {

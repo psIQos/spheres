@@ -79,6 +79,11 @@ class GameView @JvmOverloads constructor(
         dropIn()
     }
 
+    /** Reports the next touch through [Listener.onFirstTouch] again, e.g. after returning to the app. */
+    fun awaitTouch() {
+        touched = false
+    }
+
     /** Vibration feedback; switched on and off in the settings. */
     val haptics = Haptics(context)
 

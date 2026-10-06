@@ -366,11 +366,9 @@ def resume_test():
           f"saved game survives killing the app ({text(nodes, 'best_endless')})")
     tap(nodes["mode_endless"])
     time.sleep(2.5)
-    nodes = wait_for("resume")
+    nodes = wait_for("game_view")
+    check("resume" not in nodes, "continues directly, without the pause menu")
     check(text(nodes, "score_value") == score, f"resumed with score {text(nodes, 'score_value')} == {score}")
-    if "resume" in nodes:
-        tap(nodes["resume"])
-    time.sleep(1)
     check(read_board(screencap(), pos) == board, "resumed with the same board")
     shot("15-resumed")
 
@@ -453,10 +451,6 @@ def vibration_test():
     nodes = wait_for("mode_moves")
     tap(nodes["mode_moves"])
     time.sleep(2.5)
-    nodes = wait_for("resume")
-    if "resume" in nodes:
-        tap(nodes["resume"])
-    time.sleep(0.5)
     before = our_vibrations()
     one_move()
     if SDK >= 31:
@@ -617,6 +611,24 @@ def main():
     nodes = dump()
     now = text(nodes, "limit_value")
     check(now is not None and frozen is not None and int(now) < int(frozen), f"clock runs again after resume ({frozen} -> {now})")
+
+    # Leaving the app and coming back continues directly; the clock waits for a touch.
+    sh("input keyevent 3")  # Home
+    time.sleep(1)
+    away = text(dump(), "limit_value")  # None: launcher in front
+    time.sleep(3)
+    sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
+    time.sleep(2)
+    nodes = wait_for("game_view")
+    back_at = text(nodes, "limit_value")
+    check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
+    check(back_at is not None and now is not None and int(back_at) >= int(now) - 2,
+          f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
+    one_move()
+    time.sleep(2)
+    later = text(dump(), "limit_value")
+    check(later is not None and back_at is not None and int(later) < int(back_at),
+          f"clock runs again with the next touch ({back_at} -> {later})")
     leave_game()
 
     # --- Endless mode -------------------------------------------------------------
