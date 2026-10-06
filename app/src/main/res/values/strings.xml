@@ -3,10 +3,15 @@
     <string name="app_name" translatable="false">Spheres</string>
     <string name="title" translatable="false">spheres</string>
     <string name="subtitle">connect the dots</string>
-    <string name="mode_timed">Timed · 60 s</string>
-    <string name="mode_moves">Moves · 30</string>
+    <string name="mode_timed">Timed · %1$d s</string>
+    <string name="mode_moves">Moves · %1$d</string>
     <string name="mode_endless">Endless</string>
     <string name="best_score">Best: %1$d</string>
+    <string name="best_score_at">Best (%1$s): %2$d</string>
+    <string name="difficulty">Difficulty: %1$s</string>
+    <string name="difficulty_easy">Easy</string>
+    <string name="difficulty_normal">Normal</string>
+    <string name="difficulty_hard">Hard</string>
     <string name="no_score">No score yet</string>
     <string name="sound_on">Sound: on</string>
     <string name="sound_off">Sound: off</string>

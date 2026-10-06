@@ -15,6 +15,8 @@ import com.psiqos.spheres.game.Sound
 class GameActivity : Activity(), GameView.Listener {
 
     private lateinit var mode: GameMode
+    private lateinit var difficulty: Difficulty
+    private var limit = 0
     private lateinit var gameView: GameView
     private lateinit var limitLabel: TextView
     private lateinit var limitValue: TextView
@@ -57,6 +59,8 @@ class GameActivity : Activity(), GameView.Listener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         mode = runCatching { GameMode.valueOf(intent.getStringExtra(GameMode.EXTRA)!!) }.getOrDefault(GameMode.TIMED)
+        difficulty = Difficulty.parse(intent.getStringExtra(Difficulty.EXTRA))
+        limit = mode.limit(difficulty)
 
         gameView = findViewById(R.id.game_view)
         limitLabel = findViewById(R.id.limit_label)
@@ -74,6 +78,7 @@ class GameActivity : Activity(), GameView.Listener {
                 GameMode.ENDLESS -> R.string.label_moves
             }
         )
+        findViewById<TextView>(R.id.difficulty_label).setText(difficulty.label)
         findViewById<View>(R.id.back).setOnClickListener { finish() }
         findViewById<View>(R.id.play_again).setOnClickListener { restart() }
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
@@ -91,9 +96,9 @@ class GameActivity : Activity(), GameView.Listener {
         gameOver = false
         timerStarted = false
         ticking = false
-        remainingMs = mode.limit * 1000L
+        remainingMs = limit * 1000L
         overlay.visibility = View.GONE
-        gameView.newGame()
+        gameView.newGame(difficulty.size, difficulty.colors)
         updateHud()
     }
 
@@ -108,9 +113,9 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         score += result.removed.size
         moves++
-        if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, score)
+        if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
-        if (mode == GameMode.MOVES && moves >= mode.limit) {
+        if (mode == GameMode.MOVES && moves >= limit) {
             gameView.inputEnabled = false
             handler.postDelayed({ endGame() }, 500)
         }
@@ -135,12 +140,12 @@ class GameActivity : Activity(), GameView.Listener {
         setIfChanged(scoreValue, score.toString())
         setIfChanged(limitValue, when (mode) {
             GameMode.TIMED -> ((remainingMs + 999) / 1000).toString()
-            GameMode.MOVES -> (mode.limit - moves).toString()
+            GameMode.MOVES -> (limit - moves).toString()
             GameMode.ENDLESS -> moves.toString()
         })
         val low = when (mode) {
             GameMode.TIMED -> remainingMs <= 10_000
-            GameMode.MOVES -> mode.limit - moves <= 5
+            GameMode.MOVES -> limit - moves <= 5
             GameMode.ENDLESS -> false
         }
         val color = if (low) Palette.dot(0) else getColor(R.color.text_primary)
@@ -155,10 +160,10 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         gameOver = true
         gameView.inputEnabled = false
-        val best = Prefs.best(this, mode)
-        val isNewBest = Prefs.submit(this, mode, score)
+        val best = Prefs.best(this, mode, difficulty)
+        val isNewBest = Prefs.submit(this, mode, difficulty, score)
         finalScore.text = score.toString()
-        finalBest.text = getString(R.string.best_score, maxOf(best, score))
+        finalBest.text = getString(R.string.best_score_at, getString(difficulty.label), maxOf(best, score))
         newBest.visibility = if (isNewBest) View.VISIBLE else View.GONE
         overlay.alpha = 0f
         overlay.visibility = View.VISIBLE

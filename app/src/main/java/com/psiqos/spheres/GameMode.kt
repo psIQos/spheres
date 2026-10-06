@@ -2,33 +2,78 @@ package com.psiqos.spheres
 
 import android.content.Context
 
-enum class GameMode(val limit: Int) {
-    /** Score as much as possible in [limit] seconds. */
-    TIMED(60),
-    /** Score as much as possible with [limit] moves. */
-    MOVES(30),
+enum class GameMode {
+    /** Score as much as possible within a time limit. */
+    TIMED,
+    /** Score as much as possible with a limited number of moves. */
+    MOVES,
     /** No limit, just play. */
-    ENDLESS(0);
+    ENDLESS;
+
+    /** Seconds (timed) or moves (moves mode) at [difficulty]; 0 for endless. */
+    fun limit(difficulty: Difficulty): Int = when (this) {
+        TIMED -> difficulty.seconds
+        MOVES -> difficulty.moves
+        ENDLESS -> 0
+    }
 
     companion object {
         const val EXTRA = "mode"
     }
 }
 
+/**
+ * Fewer colors make long paths and squares more likely, so the color count is the
+ * main lever; board size and limits fine-tune it.
+ */
+enum class Difficulty(val colors: Int, val size: Int, val seconds: Int, val moves: Int) {
+    EASY(colors = 4, size = 6, seconds = 75, moves = 35),
+    NORMAL(colors = 5, size = 6, seconds = 60, moves = 30),
+    HARD(colors = 6, size = 7, seconds = 45, moves = 25);
+
+    fun next(): Difficulty = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        const val EXTRA = "difficulty"
+
+        fun parse(name: String?): Difficulty = entries.firstOrNull { it.name == name } ?: NORMAL
+    }
+}
+
 object Prefs {
     private fun prefs(context: Context) = context.getSharedPreferences("spheres", Context.MODE_PRIVATE)
 
-    fun best(context: Context, mode: GameMode): Int = prefs(context).getInt("best_${mode.name}", 0)
+    /**
+     * Preference key of the best score. Normal keeps the key used before difficulties
+     * existed, so earlier best scores stay where they were.
+     */
+    fun bestKey(mode: GameMode, difficulty: Difficulty): String =
+        if (difficulty == Difficulty.NORMAL) "best_${mode.name}" else "best_${mode.name}_${difficulty.name}"
+
+    fun best(context: Context, mode: GameMode, difficulty: Difficulty): Int =
+        prefs(context).getInt(bestKey(mode, difficulty), 0)
 
     /** Stores [score] if it beats the best score. Returns true if it is a new best. */
-    fun submit(context: Context, mode: GameMode, score: Int): Boolean {
-        if (score <= best(context, mode)) return false
-        prefs(context).edit().putInt("best_${mode.name}", score).apply()
+    fun submit(context: Context, mode: GameMode, difficulty: Difficulty, score: Int): Boolean {
+        if (score <= best(context, mode, difficulty)) return false
+        prefs(context).edit().putInt(bestKey(mode, difficulty), score).apply()
         return true
     }
+
+    fun difficulty(context: Context): Difficulty = Difficulty.parse(prefs(context).getString("difficulty", null))
+
+    fun setDifficulty(context: Context, difficulty: Difficulty) =
+        prefs(context).edit().putString("difficulty", difficulty.name).apply()
 
     fun soundEnabled(context: Context): Boolean = prefs(context).getBoolean("sound", true)
 
     fun setSoundEnabled(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean("sound", enabled).apply()
 }
+
+val Difficulty.label: Int
+    get() = when (this) {
+        Difficulty.EASY -> R.string.difficulty_easy
+        Difficulty.NORMAL -> R.string.difficulty_normal
+        Difficulty.HARD -> R.string.difficulty_hard
+    }

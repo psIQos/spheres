@@ -24,8 +24,17 @@ APK, OUT = sys.argv[1], sys.argv[2]
 os.makedirs(OUT, exist_ok=True)
 
 # Must match game/Palette in GameView.kt.
-PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0xA8, 0xEC), (0x9E, 0x6C, 0xDB)]
+PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0xA8, 0xEC), (0x9E, 0x6C, 0xDB),
+           (0x27, 0xB9, 0xA6)]
+# Board of the difficulty being played (see Difficulty in GameMode.kt).
 ROWS = COLS = 6
+COLORS = 5
+
+
+def set_board(size, colors):
+    global ROWS, COLS, COLORS
+    ROWS = COLS = size
+    COLORS = colors
 
 failures = []
 results = []
@@ -149,8 +158,8 @@ def read_board(img, pos):
         row = []
         for c in range(COLS):
             px = img.getpixel(pos(r, c))
-            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in PALETTE]
-            k = min(range(len(PALETTE)), key=d.__getitem__)
+            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in PALETTE[:COLORS]]
+            k = min(range(COLORS), key=d.__getitem__)
             row.append(k if d[k] < 3 * 40 ** 2 else -1)
         grid.append(row)
     return grid
@@ -249,6 +258,134 @@ def backtrack_test():
     check(after == str(before + 2), f"backtrack over {len(path)} dots back to the 2nd: score {before} -> {after}, expected +2")
 
 
+def play_moves(total, label, shots=False):
+    """Plays a whole moves-mode game on the current screen; returns the final score."""
+    nodes = dump()
+    pos = geometry(nodes)
+    expected = 0
+    observed = 0
+    moves_left = total
+    squares = 0
+    took_drag_shot = False
+    for move in range(total):
+        grid = None
+        for _ in range(4):
+            grid = read_board(screencap(), pos)
+            if all(k >= 0 for row in grid for k in row):
+                break
+            dump()  # closes a system dialog covering the board, if any
+            time.sleep(0.5)
+        if not check(all(k >= 0 for row in grid for k in row), f"{label} move {move + 1}: all dots recognized"):
+            shot(f"err-board-{label}-{move + 1}")
+            break
+
+        square = find_square(grid) if SDK >= 29 else None
+        path = square or longest_path(grid, limit=7 if SDK >= 29 else 2)
+        if len(path) < 2:
+            check(False, f"{label} move {move + 1}: no move found on board {grid}")
+            break
+        color = grid[path[0][0]][path[0][1]]
+        gain = sum(row.count(color) for row in grid) if square else len(path)
+
+        hold = None
+        if shots and square and squares == 0:
+            hold = "03-square"
+        elif shots and not square and len(path) >= 4 and not took_drag_shot:
+            hold, took_drag_shot = "03-drag", True
+        drag([pos(r, c) for r, c in path], hold=hold)
+        squares += 1 if square else 0
+        expected += gain
+        time.sleep(1.0)
+
+        if shots and move == total // 2:
+            shot("04-midgame")
+        if move < total - 1:
+            # Compare with the previous reading, so one lost move is reported once
+            # instead of shifting every later comparison.
+            nodes = dump()
+            score, left = text(nodes, "score_value"), text(nodes, "limit_value")
+            check(score == str(observed + gain),
+                  f"{label} move {move + 1} ({'square' if square else f'{len(path)} dots'}): "
+                  f"score {score} == {observed} + {gain}")
+            check(left == str(moves_left - 1), f"{label} move {move + 1}: moves left {left} == {moves_left - 1}")
+            if score is not None and score.isdigit():
+                observed = int(score)
+            if left is not None and left.isdigit():
+                moves_left = int(left)
+        else:
+            observed += gain
+    print(f"{label}: played {total} moves, {squares} squares, expected score {expected}")
+    return observed
+
+
+def difficulty_test(normal_best):
+    """Hard: 7x7 board with 6 colors and 25 moves, played through. Best scores must be
+    kept per difficulty. Easy: 4 colors and 35 moves."""
+    nodes = wait_for("difficulty_toggle")
+    if "difficulty_toggle" not in nodes:
+        return
+    check("Normal" in (text(nodes, "difficulty_toggle") or ""), f"default difficulty ({text(nodes, 'difficulty_toggle')})")
+    tap(nodes["difficulty_toggle"])
+    time.sleep(1)
+    nodes = wait_for("difficulty_toggle")
+    check("Hard" in (text(nodes, "difficulty_toggle") or ""), f"toggle to hard ({text(nodes, 'difficulty_toggle')})")
+    check("25" in (text(nodes, "mode_moves") or ""), f"hard: moves button shows 25 ({text(nodes, 'mode_moves')})")
+    check("45" in (text(nodes, "mode_timed") or ""), f"hard: timed button shows 45 s ({text(nodes, 'mode_timed')})")
+    check(str(normal_best) not in (text(nodes, "best_moves") or ""),
+          f"hard has its own best score, not normal's ({text(nodes, 'best_moves')})")
+    shot("10-menu-hard")
+
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return
+    check(text(nodes, "limit_value") == "25", f"hard: 25 moves ({text(nodes, 'limit_value')})")
+    check((text(nodes, "difficulty_label") or "").lower() == "hard", f"HUD shows difficulty ({text(nodes, 'difficulty_label')})")
+    set_board(7, 6)
+    shot("11-board-hard")
+    hard = play_moves(25, "hard")
+    time.sleep(1.5)
+    nodes = dump()
+    check(text(nodes, "final_score") == str(hard), f"hard: final score {text(nodes, 'final_score')} == {hard}")
+    check("Hard" in (text(nodes, "final_best") or ""), f"game over names the difficulty ({text(nodes, 'final_best')})")
+    shot("12-gameover-hard")
+    sh("input keyevent 4")
+    time.sleep(1.5)
+
+    nodes = wait_for("best_moves")
+    check(str(hard) in (text(nodes, "best_moves") or ""), f"menu shows hard best {hard} ({text(nodes, 'best_moves')})")
+    tap(nodes["difficulty_toggle"])
+    time.sleep(1)
+    nodes = wait_for("difficulty_toggle")
+    check("Easy" in (text(nodes, "difficulty_toggle") or ""), f"toggle to easy ({text(nodes, 'difficulty_toggle')})")
+    check("35" in (text(nodes, "mode_moves") or ""), f"easy: moves button shows 35 ({text(nodes, 'mode_moves')})")
+    best_easy = text(nodes, "best_moves") or ""
+    check(str(hard) not in best_easy and str(normal_best) not in best_easy, f"easy has its own best score ({best_easy})")
+
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    nodes = wait_for("game_view")
+    check(text(nodes, "limit_value") == "35", f"easy: 35 moves ({text(nodes, 'limit_value')})")
+    set_board(6, 4)
+    grid = read_board(screencap(), geometry(nodes))
+    used = {k for row in grid for k in row}
+    check(-1 not in used and len(used) <= 4, f"easy: board uses at most 4 colors ({sorted(used)})")
+    shot("13-board-easy")
+    sh("input keyevent 4")
+    time.sleep(1.5)
+
+    # Back to normal: its best score is untouched.
+    nodes = wait_for("difficulty_toggle")
+    tap(nodes["difficulty_toggle"])
+    time.sleep(1)
+    nodes = wait_for("best_moves")
+    check("Normal" in (text(nodes, "difficulty_toggle") or ""), "toggle back to normal")
+    check(str(normal_best) in (text(nodes, "best_moves") or ""),
+          f"normal best {normal_best} unchanged ({text(nodes, 'best_moves')})")
+    set_board(6, 5)
+
+
 def crash_log():
     log = adb("logcat", "-d", "-b", "crash")
     return "\n".join(l for l in log.splitlines() if PKG in l or "FATAL" in l)
@@ -278,59 +415,7 @@ def main():
     pos = geometry(nodes)
     shot("02-board")
 
-    expected = 0
-    observed = 0
-    moves_left = 30
-    squares = 0
-    took_drag_shot = False
-    for move in range(30):
-        grid = None
-        for _ in range(4):
-            grid = read_board(screencap(), pos)
-            if all(k >= 0 for row in grid for k in row):
-                break
-            dump()  # closes a system dialog covering the board, if any
-            time.sleep(0.5)
-        if not check(all(k >= 0 for row in grid for k in row), f"move {move + 1}: all dots recognized"):
-            shot(f"err-board-{move + 1}")
-            break
-
-        square = find_square(grid) if SDK >= 29 else None
-        path = square or longest_path(grid, limit=7 if SDK >= 29 else 2)
-        if len(path) < 2:
-            check(False, f"move {move + 1}: no move found on board {grid}")
-            break
-        color = grid[path[0][0]][path[0][1]]
-        gain = sum(row.count(color) for row in grid) if square else len(path)
-
-        hold = None
-        if square and squares == 0:
-            hold = "03-square"
-        elif not square and len(path) >= 4 and not took_drag_shot:
-            hold, took_drag_shot = "03-drag", True
-        drag([pos(r, c) for r, c in path], hold=hold)
-        squares += 1 if square else 0
-        expected += gain
-        time.sleep(1.0)
-
-        if move == 14:
-            shot("04-midgame")
-        if move < 29:
-            # Compare with the previous reading, so one lost move is reported once
-            # instead of shifting every later comparison.
-            nodes = dump()
-            score, left = text(nodes, "score_value"), text(nodes, "limit_value")
-            check(score == str(observed + gain),
-                  f"move {move + 1} ({'square' if square else f'{len(path)} dots'}): "
-                  f"score {score} == {observed} + {gain}")
-            check(left == str(moves_left - 1), f"move {move + 1}: moves left {left} == {moves_left - 1}")
-            if score is not None and score.isdigit():
-                observed = int(score)
-            if left is not None and left.isdigit():
-                moves_left = int(left)
-        else:
-            observed += gain
-    print(f"played moves, {squares} squares, expected score {expected}")
+    observed = play_moves(30, "normal", shots=True)
 
     time.sleep(1.5)
     nodes = dump()
@@ -381,6 +466,8 @@ def main():
     sh("input keyevent 4")
     time.sleep(1)
 
+    difficulty_test(normal_best=observed)
+
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))
     check_anrs("scripted play")
@@ -404,7 +491,7 @@ def main():
 
 def finish():
     # Annotations are cut at 4 KB: list failures and the non-repetitive checks only.
-    shown = [r for r in results if not r.startswith("ok   move")]
+    shown = [r for r in results if not re.match(r"ok   \w+ move \d+", r)]
     total = sum(1 for r in results if not r.startswith("info "))
     annotate("notice", f"API {SDK}: {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
     return 1 if failures else 0

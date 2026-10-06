@@ -32,7 +32,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="40dp"
+            android:layout_marginBottom="24dp"
             android:letterSpacing="0.15"
             android:text="@string/subtitle"
             android:textAllCaps="true"
@@ -40,10 +40,21 @@
             android:textSize="13sp" />
 
         <TextView
+            android:id="@+id/difficulty_toggle"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginBottom="16dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
+
+        <TextView
             android:id="@+id/mode_timed"
             style="@style/ModeButton"
-            android:background="@drawable/btn_red"
-            android:text="@string/mode_timed" />
+            android:background="@drawable/btn_red" />
 
         <TextView
             android:id="@+id/best_timed"
@@ -52,8 +63,7 @@
         <TextView
             android:id="@+id/mode_moves"
             style="@style/ModeButton"
-            android:background="@drawable/btn_blue"
-            android:text="@string/mode_moves" />
+            android:background="@drawable/btn_blue" />
 
         <TextView
             android:id="@+id/best_moves"

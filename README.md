@@ -10,11 +10,25 @@ Schließt du ein **Quadrat** (eine geschlossene Schleife), werden *alle* Punkte 
 
 | Modus  | Regel                          |
 |--------|--------------------------------|
-| Zeit   | 60 Sekunden (Uhr startet mit der ersten Berührung) |
-| Züge   | 30 Züge                        |
+| Zeit   | Zeitlimit (Uhr startet mit der ersten Berührung) |
+| Züge   | begrenzte Anzahl Züge          |
 | Endlos | ohne Limit                     |
 
-Für jeden Modus wird ein Rekord gespeichert. Mit Ton (synthetisierte, ansteigende Noten) und haptischem Feedback; Ton lässt sich im Menü abschalten.
+## Schwierigkeit
+
+Im Menü umschaltbar, gilt für alle Modi:
+
+|                | Leicht | Normal | Schwer |
+|----------------|--------|--------|--------|
+| Farben         | 4      | 5      | 6      |
+| Spielfeld      | 6×6    | 6×6    | 7×7    |
+| Zeit           | 75 s   | 60 s   | 45 s   |
+| Züge           | 35     | 30     | 25     |
+
+Weniger Farben ergeben mehr lange Pfade und Quadrate. Für jede Kombination aus Modus und Schwierigkeit
+wird ein eigener Rekord gespeichert. Rekorde aus Versionen vor der Schwierigkeitseinstellung zählen als „Normal“.
+
+Mit Ton (synthetisierte, ansteigende Noten) und haptischem Feedback; Ton lässt sich im Menü abschalten.
 
 ## Installieren
 
@@ -52,6 +66,8 @@ Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.git
 
 - liest die Punktfarben aus Screenshots und spielt ein komplettes 30-Züge-Spiel (lange Pfade, Quadrate),
 - prüft nach jedem Zug Punktestand und verbleibende Züge, danach Spielende, Rekord, „Nochmal“ und den Timer,
+- wischt sichtbar ungenau über einen Pfad zurück,
+- spielt eine Runde auf „Schwer“ (7×7, 6 Farben), prüft „Leicht“ und dass die Rekorde je Schwierigkeit getrennt bleiben,
 - startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.
 
 Die Screenshots liegen als Artefakt `screenshots-api-*` am Lauf.

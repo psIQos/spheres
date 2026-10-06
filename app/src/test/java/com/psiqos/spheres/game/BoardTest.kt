@@ -148,6 +148,27 @@ class BoardTest {
     }
 
     @Test
+    fun allDifficultiesStayPlayableAndUseAllColors() {
+        for ((size, colors) in listOf(6 to 4, 6 to 5, 7 to 6)) {
+            val b = Board(size, size, colors, Random(size * 10 + colors))
+            val seen = HashSet<Int>()
+            val rnd = Random(3)
+            repeat(300) {
+                assertTrue(b.hasMove())
+                for (r in 0 until size) for (c in 0 until size) seen += b[r, c]
+                val pairs = (0 until size).flatMap { r -> (0 until size).flatMap { c ->
+                    listOf(Cell(r, c) to Cell(r, c + 1), Cell(r, c) to Cell(r + 1, c))
+                } }.filter { (a, n) -> b.contains(n) && b[a] == b[n] }
+                val (a, n) = pairs[rnd.nextInt(pairs.size)]
+                b.begin(a)
+                b.extend(n)
+                requireResult(b.commit())
+            }
+            assertEquals("${size}x$size with $colors colors", (0 until colors).toSet(), seen)
+        }
+    }
+
+    @Test
     fun alwaysPlayableAfterMoves() {
         val b = Board(random = Random(42))
         val rnd = Random(7)

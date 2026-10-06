@@ -48,6 +48,12 @@
                 android:textColor="@color/text_secondary"
                 android:textSize="15sp" />
 
+            <TextView
+                android:id="@+id/difficulty_label"
+                style="@style/HudLabel"
+                android:layout_below="@id/back"
+                android:layout_centerHorizontal="true" />
+
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

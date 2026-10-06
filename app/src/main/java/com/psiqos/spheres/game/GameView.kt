@@ -80,13 +80,10 @@ class GameView @JvmOverloads constructor(
         dropIn()
     }
 
-    fun newGame() {
-        board = Board()
-        tracker = PathTracker(board).also {
-            it.originX = originX
-            it.originY = originY
-            it.cellSize = cellSize
-        }
+    fun newGame(size: Int = 6, colors: Int = 5) {
+        board = Board(rows = size, cols = size, colorCount = colors)
+        tracker = PathTracker(board)
+        updateGeometry()
         touched = false
         effects.clear()
         squareFlashStart = 0L
@@ -103,12 +100,15 @@ class GameView @JvmOverloads constructor(
         startAnimating()
     }
 
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) = updateGeometry()
+
+    private fun updateGeometry() {
+        if (width == 0 || height == 0) return
         val pad = 16 * density
-        val available = min(w - 2 * pad, h - 2 * pad)
+        val available = min(width - 2 * pad, height - 2 * pad)
         cellSize = available / max(board.rows, board.cols)
-        originX = (w - cellSize * board.cols) / 2f
-        originY = (h - cellSize * board.rows) / 2f
+        originX = (width - cellSize * board.cols) / 2f
+        originY = (height - cellSize * board.rows) / 2f
         tracker.originX = originX
         tracker.originY = originY
         tracker.cellSize = cellSize
@@ -336,6 +336,7 @@ object Palette {
         0xFF83D66A.toInt(), // green
         0xFF5CA8EC.toInt(), // blue
         0xFF9E6CDB.toInt(), // purple
+        0xFF27B9A6.toInt(), // teal (hard only), in the widest hue gap between green and blue
     )
 
     fun dot(index: Int): Int = dots[index.mod(dots.size)]
