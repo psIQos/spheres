@@ -32,6 +32,17 @@ Auf dem Handy die `spheres.apk` öffnen und „Installation aus unbekannten Quel
 
 Benötigt JDK 17+ und das Android SDK (Platform 35).
 
+## Emulator-Test
+
+Der Workflow „Emulator test“ installiert bei jedem Push die Release-APK auf einem Emulator mit
+Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.github/e2e/play.py` aus:
+
+- liest die Punktfarben aus Screenshots und spielt ein komplettes 30-Züge-Spiel (lange Pfade, Quadrate),
+- prüft nach jedem Zug Punktestand und verbleibende Züge, danach Spielende, Rekord, „Nochmal“ und den Timer,
+- startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.
+
+Die Screenshots liegen als Artefakt `screenshots-api-*` am Lauf.
+
 Die APK wird mit `app/spheres.keystore` (Passwort `spheres`) signiert, damit alle Builds denselben
 Schlüssel haben und Updates ohne Deinstallation funktionieren. Für eine Veröffentlichung im Play Store
 einen eigenen, geheimen Schlüssel verwenden.
