@@ -73,6 +73,8 @@ def dump():
         out = sh("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml")
         if "<?xml" in out:
             root = ET.fromstring(out[out.index("<?xml"):])
+            if dismiss_system_dialog(root):
+                continue
             nodes = {}
             for n in root.iter("node"):
                 rid = n.get("resource-id", "")
@@ -96,6 +98,24 @@ def wait_for(rid, timeout=15):
     check(False, f"view '{rid}' did not appear (saw: {sorted(nodes)})")
     shot(f"err-missing-{rid}")
     return nodes
+
+
+def dismiss_system_dialog(root):
+    """The slow emulator sometimes shows "System UI isn't responding" over the app.
+    Such dialogs are closed; one about our own app counts as a failure."""
+    by_id = {n.get("resource-id"): n for n in root.iter("node")}
+    button = by_id.get("android:id/aerr_wait") or by_id.get("android:id/aerr_close")
+    if button is None:
+        return False
+    title = " ".join(n.get("text", "") for n in root.iter("node") if n.get("text"))
+    if "Spheres" in title or "spheres" in title:
+        check(False, f"system dialog about the app: {title}")
+        shot(f"err-dialog-{int(time.time())}")
+    else:
+        print(f"dismissing unrelated system dialog: {title}", flush=True)
+    tap(button)
+    time.sleep(2)
+    return True
 
 
 def bounds(n):
@@ -226,6 +246,7 @@ def main():
             grid = read_board(screencap(), pos)
             if all(k >= 0 for row in grid for k in row):
                 break
+            dump()  # closes a system dialog covering the board, if any
             time.sleep(0.5)
         if not check(all(k >= 0 for row in grid for k in row), f"move {move + 1}: all dots recognized"):
             shot(f"err-board-{move + 1}")
