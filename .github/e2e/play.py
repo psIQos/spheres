@@ -301,9 +301,15 @@ def play_moves(total, label, shots=False):
             shot("04-midgame")
         if move < total - 1:
             # Compare with the previous reading, so one lost move is reported once
-            # instead of shifting every later comparison.
-            nodes = dump()
-            score, left = text(nodes, "score_value"), text(nodes, "limit_value")
+            # instead of shifting every later comparison. A busy emulator can deliver
+            # the injected swipe late, so wait a little for the HUD to change.
+            deadline = time.time() + 5
+            while True:
+                nodes = dump()
+                score, left = text(nodes, "score_value"), text(nodes, "limit_value")
+                if left != str(moves_left) or time.time() > deadline:
+                    break
+                time.sleep(0.5)
             check(score == str(observed + gain),
                   f"{label} move {move + 1} ({'square' if square else f'{len(path)} dots'}): "
                   f"score {score} == {observed} + {gain}")
