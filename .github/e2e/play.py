@@ -235,10 +235,16 @@ def backtrack_test():
         return
     pos = geometry(nodes)
     cell = pos(0, 1)[0] - pos(0, 0)[0]
-    grid = read_board(screencap(), pos)
-    path = longest_path(grid, limit=6)
+    # The board is random: play ordinary moves until it has a path of 4 or more.
+    for _ in range(15):
+        path = longest_path(read_board(screencap(), pos), limit=6)
+        if len(path) >= 4:
+            break
+        drag([pos(r, c) for r, c in path])
+        time.sleep(1.5)
     if not check(len(path) >= 4, f"backtrack: found a path of {len(path)} >= 4 dots"):
         return
+    nodes = dump()
     before = int(text(nodes, "score_value") or 0)
     forward = [pos(r, c) for r, c in path]
     back = []
