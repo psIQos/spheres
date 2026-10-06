@@ -77,6 +77,7 @@ Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.git
 - spielt eine Runde auf „Schwer“ (7×7, 6 Farben), prüft „Leicht“ und dass die Rekorde je Schwierigkeit getrennt bleiben,
 - pausiert (Uhr muss stehen), verlässt ein Spiel, beendet die App hart und setzt mit gleichem Brett und Punktestand fort,
 - prüft das Einstellungsmenü und das Zurücksetzen der Rekorde,
+- prüft (ab Android 12) im Vibrations-Log des Systems, dass Verbinden vibriert und der Schalter in den Einstellungen das abstellt,
 - startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.
 
 Die Screenshots liegen als Artefakt `screenshots-api-*` am Lauf.

@@ -415,6 +415,66 @@ def settings_test():
     check("No score" in (text(nodes, "best_moves") or ""), f"records were reset ({text(nodes, 'best_moves')})")
 
 
+def our_vibrations():
+    """Lines of the system's recent-vibration log that belong to the app."""
+    log = sh("dumpsys vibrator_manager") if SDK >= 31 else sh("dumpsys vibrator")
+    return {l.strip() for l in log.splitlines() if PKG in l}
+
+
+def one_move():
+    nodes = wait_for("game_view")
+    pos = geometry(nodes)
+    path = longest_path(read_board(screencap(), pos), limit=3 if SDK >= 29 else 2)
+    drag([pos(r, c) for r, c in path])
+    time.sleep(1.5)
+
+
+def vibration_test():
+    """Connecting dots vibrates, unless switched off in the settings."""
+    before = our_vibrations()
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    one_move()
+    after = our_vibrations()
+    if SDK >= 31:
+        check(after - before, f"connecting dots vibrates ({len(after - before)} new vibrations logged)")
+    else:
+        # Older dumpsys output does not name the calling app.
+        print(f"vibrations logged for the app: {len(after)}", flush=True)
+    leave_game()
+
+    nodes = open_settings()
+    if "vibration_switch" in nodes:
+        tap(nodes["vibration_switch"])
+    time.sleep(0.5)
+    sh("input keyevent 4")
+    time.sleep(1.5)
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    nodes = wait_for("resume")
+    if "resume" in nodes:
+        tap(nodes["resume"])
+    time.sleep(0.5)
+    before = our_vibrations()
+    one_move()
+    if SDK >= 31:
+        check(our_vibrations() == before, "no vibration when switched off in the settings")
+    leave_game()
+
+    # Switch it on again; that plays a sample vibration.
+    nodes = open_settings()
+    before = our_vibrations()
+    if "vibration_switch" in nodes:
+        tap(nodes["vibration_switch"])
+    time.sleep(1)
+    if SDK >= 31:
+        check(our_vibrations() - before, "switching vibration on plays a sample")
+    sh("input keyevent 4")
+    time.sleep(1.5)
+
+
 def difficulty_test(normal_best):
     """Hard: 7x7 board with 6 colors and 25 moves, played through. Best scores must be
     kept per difficulty. Easy: 4 colors and 35 moves."""
@@ -571,6 +631,7 @@ def main():
 
     difficulty_test(normal_best=observed)
     settings_test()
+    vibration_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))

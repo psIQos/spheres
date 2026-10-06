@@ -11,6 +11,7 @@ import android.widget.RadioButton
 import android.widget.RadioGroup
 import android.widget.Switch
 import android.widget.Toast
+import com.psiqos.spheres.game.Haptics
 
 class SettingsActivity : Activity() {
 
@@ -41,7 +42,11 @@ class SettingsActivity : Activity() {
         }
         findViewById<Switch>(R.id.vibration_switch).apply {
             isChecked = Prefs.vibrationEnabled(this@SettingsActivity)
-            setOnCheckedChangeListener { _, on -> Prefs.setVibrationEnabled(this@SettingsActivity, on) }
+            setOnCheckedChangeListener { _, on ->
+                Prefs.setVibrationEnabled(this@SettingsActivity, on)
+                // Let the player feel what they switched on.
+                if (on) Haptics(this@SettingsActivity).square()
+            }
         }
 
         findViewById<android.view.View>(R.id.reset_records).setOnClickListener {

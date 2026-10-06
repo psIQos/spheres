@@ -8,7 +8,6 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.os.SystemClock
 import android.util.AttributeSet
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import kotlin.math.max
@@ -80,8 +79,8 @@ class GameView @JvmOverloads constructor(
         dropIn()
     }
 
-    /** Vibrate when connecting dots. */
-    var haptics = true
+    /** Vibration feedback; switched on and off in the settings. */
+    val haptics = Haptics(context)
 
     /** Current dot colors, row by row, e.g. to save the game. */
     fun colors(): List<IntArray> = List(board.rows) { r -> IntArray(board.cols) { c -> board[r, c] } }
@@ -174,6 +173,7 @@ class GameView @JvmOverloads constructor(
         addPulse(cell)
         listener?.onPathChanged(board.path.size, false)
         Sound.playNote(0)
+        haptics.tick()
         startAnimating()
     }
 
@@ -185,16 +185,17 @@ class GameView @JvmOverloads constructor(
             addPulse(board.path.last())
             if (square && !wasSquare) {
                 Sound.playSquare()
-                if (haptics) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                haptics.square()
                 for (r in 0 until board.rows) for (c in 0 until board.cols) {
                     if (board[r, c] == board.pathColor) addPulse(Cell(r, c))
                 }
             } else {
                 Sound.playNote(board.path.size - 1)
-                if (haptics) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                haptics.tick()
             }
         } else {
             Sound.playNote(board.path.size - 1)
+            haptics.tick()
         }
         startAnimating()
     }

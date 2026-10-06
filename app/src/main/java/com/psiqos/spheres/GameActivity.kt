@@ -88,7 +88,7 @@ class GameActivity : Activity(), GameView.Listener {
 
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
-        gameView.haptics = Prefs.vibrationEnabled(this)
+        gameView.haptics.enabled = Prefs.vibrationEnabled(this)
         gameView.listener = this
 
         val saved = Prefs.savedGame(this, mode)
@@ -228,6 +228,7 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         gameOver = true
         gameView.inputEnabled = false
+        gameView.haptics.gameOver()
         Prefs.clearSavedGame(this, mode)
         val best = Prefs.best(this, mode, difficulty)
         val isNewBest = Prefs.submit(this, mode, difficulty, score)
