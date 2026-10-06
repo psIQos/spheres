@@ -29,9 +29,11 @@ Zusätzlich baut GitHub Actions bei jedem Push die APK (Workflow „Build APK“
 
 1. `versionName` in `app/build.gradle.kts` setzen (bei Bedarf `versionCode` erhöhen), pushen und warten,
    bis „Build APK“ und „Emulator test“ grün sind.
-2. Tag `v<versionName>` auf diesen Commit setzen und pushen, z. B. `git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1`.
+2. Unter *Actions → Build APK → Run workflow* den Branch wählen und „Create tag … and publish a release“
+   anhaken. Der Workflow legt den Tag `v<versionName>` auf dem gebauten Commit an und veröffentlicht die APK.
+   Alternativ den Tag selbst pushen: `git tag v1.0.0-beta.1 && git push origin v1.0.0-beta.1`.
 
-Der Workflow bricht ab, wenn Tag und `versionName` nicht übereinstimmen. Versionen mit Bindestrich
+Bei einem gepushten Tag bricht der Workflow ab, wenn Tag und `versionName` nicht übereinstimmen. Versionen mit Bindestrich
 (`-beta.1`, `-rc.1`) werden als Vorabversion (Pre-release) veröffentlicht.
 
 ## Selbst bauen
