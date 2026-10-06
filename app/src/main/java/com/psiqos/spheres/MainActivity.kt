@@ -5,12 +5,8 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
-import com.psiqos.spheres.game.Sound
 
 class MainActivity : Activity() {
-
-    private lateinit var soundToggle: TextView
-    private lateinit var difficultyToggle: TextView
 
     private val modes = listOf(
         Triple(GameMode.TIMED, R.id.mode_timed, R.id.best_timed),
@@ -22,26 +18,20 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        for ((mode, buttonId, _) in modes) {
-            findViewById<View>(buttonId).setOnClickListener {
+        for ((mode, buttonId, bestId) in modes) {
+            val start = View.OnClickListener {
                 startActivity(
                     Intent(this, GameActivity::class.java)
                         .putExtra(GameMode.EXTRA, mode.name)
                         .putExtra(Difficulty.EXTRA, Prefs.difficulty(this).name)
                 )
             }
+            findViewById<View>(buttonId).setOnClickListener(start)
+            // The line below a button can say "tap to resume", so it starts the game too.
+            findViewById<View>(bestId).setOnClickListener(start)
         }
-
-        difficultyToggle = findViewById(R.id.difficulty_toggle)
-        difficultyToggle.setOnClickListener {
-            Prefs.setDifficulty(this, Prefs.difficulty(this).next())
-            refresh()
-        }
-
-        soundToggle = findViewById(R.id.sound_toggle)
-        soundToggle.setOnClickListener {
-            Prefs.setSoundEnabled(this, !Prefs.soundEnabled(this))
-            refresh()
+        findViewById<View>(R.id.settings_button).setOnClickListener {
+            startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
 
@@ -52,16 +42,20 @@ class MainActivity : Activity() {
 
     private fun refresh() {
         val difficulty = Prefs.difficulty(this)
-        difficultyToggle.text = getString(R.string.difficulty, getString(difficulty.label))
+        findViewById<TextView>(R.id.difficulty_summary).text =
+            getString(R.string.difficulty, getString(difficulty.label))
         findViewById<TextView>(R.id.mode_timed).text = getString(R.string.mode_timed, difficulty.seconds)
         findViewById<TextView>(R.id.mode_moves).text = getString(R.string.mode_moves, difficulty.moves)
         for ((mode, _, bestId) in modes) {
+            val saved = Prefs.savedGame(this, mode)
             val best = Prefs.best(this, mode, difficulty)
-            findViewById<TextView>(bestId).text =
-                if (best > 0) getString(R.string.best_score, best) else getString(R.string.no_score)
+            findViewById<TextView>(bestId).text = when {
+                saved != null && saved.difficulty != difficulty ->
+                    getString(R.string.saved_game_at, saved.score, getString(saved.difficulty.label))
+                saved != null -> getString(R.string.saved_game, saved.score)
+                best > 0 -> getString(R.string.best_score, best)
+                else -> getString(R.string.no_score)
+            }
         }
-        val on = Prefs.soundEnabled(this)
-        Sound.enabled = on
-        soundToggle.setText(if (on) R.string.sound_on else R.string.sound_off)
     }
 }

@@ -15,13 +15,14 @@ import com.psiqos.spheres.game.Sound
 class GameActivity : Activity(), GameView.Listener {
 
     private lateinit var mode: GameMode
-    private lateinit var difficulty: Difficulty
+    private var difficulty = Difficulty.NORMAL
     private var limit = 0
     private lateinit var gameView: GameView
     private lateinit var limitLabel: TextView
     private lateinit var limitValue: TextView
     private lateinit var scoreValue: TextView
     private lateinit var overlay: View
+    private lateinit var pauseOverlay: View
     private lateinit var finalScore: TextView
     private lateinit var finalBest: TextView
     private lateinit var newBest: TextView
@@ -31,6 +32,7 @@ class GameActivity : Activity(), GameView.Listener {
     private var score = 0
     private var moves = 0
     private var gameOver = false
+    private var paused = false
 
     // Timed mode
     private var timerStarted = false
@@ -59,14 +61,13 @@ class GameActivity : Activity(), GameView.Listener {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_game)
         mode = runCatching { GameMode.valueOf(intent.getStringExtra(GameMode.EXTRA)!!) }.getOrDefault(GameMode.TIMED)
-        difficulty = Difficulty.parse(intent.getStringExtra(Difficulty.EXTRA))
-        limit = mode.limit(difficulty)
 
         gameView = findViewById(R.id.game_view)
         limitLabel = findViewById(R.id.limit_label)
         limitValue = findViewById(R.id.limit_value)
         scoreValue = findViewById(R.id.score_value)
         overlay = findViewById(R.id.game_over)
+        pauseOverlay = findViewById(R.id.pause_overlay)
         finalScore = findViewById(R.id.final_score)
         finalBest = findViewById(R.id.final_best)
         newBest = findViewById(R.id.new_best)
@@ -78,28 +79,94 @@ class GameActivity : Activity(), GameView.Listener {
                 GameMode.ENDLESS -> R.string.label_moves
             }
         )
-        findViewById<TextView>(R.id.difficulty_label).setText(difficulty.label)
-        findViewById<View>(R.id.back).setOnClickListener { finish() }
+        findViewById<View>(R.id.pause_button).setOnClickListener { pause() }
+        findViewById<View>(R.id.resume).setOnClickListener { resume() }
+        findViewById<View>(R.id.new_round).setOnClickListener { restart() }
+        findViewById<View>(R.id.pause_to_menu).setOnClickListener { finish() }
         findViewById<View>(R.id.play_again).setOnClickListener { restart() }
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
 
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
+        gameView.haptics = Prefs.vibrationEnabled(this)
         gameView.listener = this
-        restart()
+
+        val saved = Prefs.savedGame(this, mode)
+        if (saved != null) {
+            // Continue where the player left, paused so no time is lost.
+            setDifficulty(saved.difficulty)
+            score = saved.score
+            moves = saved.moves
+            remainingMs = saved.remainingMs
+            timerStarted = saved.timerStarted
+            gameView.newGame(difficulty.size, difficulty.colors, restore = saved.colors)
+            updateHud()
+            pause()
+        } else {
+            restart()
+        }
     }
 
+    private fun setDifficulty(d: Difficulty) {
+        difficulty = d
+        limit = mode.limit(d)
+        findViewById<TextView>(R.id.difficulty_label).setText(d.label)
+    }
+
+    /** Starts a new round with the difficulty chosen in the settings. */
     private fun restart() {
         handler.removeCallbacksAndMessages(null)
+        Prefs.clearSavedGame(this, mode)
+        setDifficulty(Difficulty.parse(intent.getStringExtra(Difficulty.EXTRA)))
         score = 0
         moves = 0
         gameOver = false
+        paused = false
         timerStarted = false
         ticking = false
         remainingMs = limit * 1000L
         overlay.visibility = View.GONE
+        pauseOverlay.visibility = View.GONE
         gameView.newGame(difficulty.size, difficulty.colors)
         updateHud()
+    }
+
+    private fun pause() {
+        if (gameOver) return
+        paused = true
+        stopTicking()
+        gameView.inputEnabled = false
+        pauseOverlay.visibility = View.VISIBLE
+        save()
+    }
+
+    private fun resume() {
+        paused = false
+        pauseOverlay.visibility = View.GONE
+        gameView.inputEnabled = true
+        if (timerStarted) startTicking()
+    }
+
+    @Deprecated("Still called for apps that do not opt in to predictive back")
+    override fun onBackPressed() {
+        when {
+            gameOver -> finish()
+            paused -> resume()
+            else -> pause()
+        }
+    }
+
+    /** Stores the running game, or forgets it once there is nothing left to resume. */
+    private fun save() {
+        val finished = gameOver ||
+            (mode == GameMode.MOVES && moves >= limit) ||
+            (mode == GameMode.TIMED && timerStarted && remainingMs <= 0)
+        val untouched = score == 0 && moves == 0 && !timerStarted
+        if (finished || untouched) {
+            Prefs.clearSavedGame(this, mode)
+        } else {
+            Prefs.saveGame(this, mode, SavedGame(difficulty, score, moves, remainingMs, timerStarted, gameView.colors()))
+        }
     }
 
     override fun onFirstTouch() {
@@ -115,6 +182,7 @@ class GameActivity : Activity(), GameView.Listener {
         moves++
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
+        save()
         if (mode == GameMode.MOVES && moves >= limit) {
             gameView.inputEnabled = false
             handler.postDelayed({ endGame() }, 500)
@@ -122,7 +190,7 @@ class GameActivity : Activity(), GameView.Listener {
     }
 
     private fun startTicking() {
-        if (ticking || gameOver) return
+        if (ticking || gameOver || paused) return
         ticking = true
         lastTick = SystemClock.elapsedRealtime()
         handler.post(tick)
@@ -160,6 +228,7 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         gameOver = true
         gameView.inputEnabled = false
+        Prefs.clearSavedGame(this, mode)
         val best = Prefs.best(this, mode, difficulty)
         val isNewBest = Prefs.submit(this, mode, difficulty, score)
         finalScore.text = score.toString()
@@ -172,12 +241,8 @@ class GameActivity : Activity(), GameView.Listener {
 
     override fun onPause() {
         super.onPause()
-        stopTicking()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        if (timerStarted && !gameOver) startTicking()
+        // Home button, a call, ...: pause, so the clock stops and the game is saved.
+        if (!gameOver && !isFinishing) pause() else save()
     }
 
     override fun onDestroy() {

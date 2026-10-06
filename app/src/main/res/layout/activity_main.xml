@@ -40,14 +40,10 @@
             android:textSize="13sp" />
 
         <TextView
-            android:id="@+id/difficulty_toggle"
+            android:id="@+id/difficulty_summary"
             android:layout_width="wrap_content"
-            android:layout_height="48dp"
-            android:layout_marginBottom="16dp"
-            android:background="?android:attr/selectableItemBackground"
-            android:gravity="center"
-            android:paddingStart="20dp"
-            android:paddingEnd="20dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
             android:textColor="@color/text_primary"
             android:textSize="16sp" />
 
@@ -90,7 +86,7 @@
             android:textSize="14sp" />
 
         <TextView
-            android:id="@+id/sound_toggle"
+            android:id="@+id/settings_button"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:layout_marginTop="16dp"
@@ -98,7 +94,8 @@
             android:gravity="center"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
+            android:text="@string/settings"
             android:textColor="@color/text_primary"
-            android:textSize="15sp" />
+            android:textSize="16sp" />
     </LinearLayout>
 </ScrollView>

@@ -318,17 +318,100 @@ def play_moves(total, label, shots=False):
     return observed
 
 
+def leave_game():
+    """Back to the menu: through the pause menu, or from the game-over screen."""
+    sh("input keyevent 4")
+    time.sleep(1)
+    nodes = dump()
+    if "pause_to_menu" in nodes:
+        tap(nodes["pause_to_menu"])
+    elif "to_menu" in nodes:
+        tap(nodes["to_menu"])
+    time.sleep(1.5)
+
+
+def resume_test():
+    """Leaving an endless game and even killing the app keeps it (issue #6)."""
+    nodes = wait_for("game_view")
+    pos = geometry(nodes)
+    path = longest_path(read_board(screencap(), pos), limit=3)
+    drag([pos(r, c) for r, c in path] if SDK >= 29 else [pos(*path[0]), pos(*path[1])])
+    time.sleep(1.5)
+    nodes = dump()
+    score = text(nodes, "score_value")
+    board = read_board(screencap(), pos)
+    leave_game()
+    nodes = wait_for("best_endless")
+    hint = text(nodes, "best_endless") or ""
+    check(score is not None and score in hint, f"menu offers to resume ({hint})")
+
+    sh(f"am force-stop {PKG}")
+    time.sleep(1)
+    sh(f"am start -W -n {PKG}/.MainActivity")
+    time.sleep(2)
+    nodes = wait_for("best_endless")
+    check(score is not None and score in (text(nodes, "best_endless") or ""),
+          f"saved game survives killing the app ({text(nodes, 'best_endless')})")
+    tap(nodes["mode_endless"])
+    time.sleep(2.5)
+    nodes = wait_for("resume")
+    check(text(nodes, "score_value") == score, f"resumed with score {text(nodes, 'score_value')} == {score}")
+    if "resume" in nodes:
+        tap(nodes["resume"])
+    time.sleep(1)
+    check(read_board(screencap(), pos) == board, "resumed with the same board")
+    shot("15-resumed")
+
+
+def open_settings():
+    nodes = wait_for("settings_button")
+    tap(nodes["settings_button"])
+    time.sleep(1.5)
+    return wait_for("difficulty_group")
+
+
+def choose_difficulty(rid):
+    nodes = open_settings()
+    if rid in nodes:
+        tap(nodes[rid])
+    time.sleep(0.5)
+    sh("input keyevent 4")
+    time.sleep(1.5)
+    return wait_for("difficulty_summary")
+
+
+def settings_test():
+    """Settings screen (issue #7): options are shown, records can be reset after confirming."""
+    nodes = open_settings()
+    for rid in ("difficulty_easy", "difficulty_normal", "difficulty_hard", "sound_switch", "vibration_switch", "reset_records"):
+        check(rid in nodes, f"settings show {rid}")
+    check("checked=\"true\"" in ET.tostring(nodes["difficulty_normal"]).decode() if "difficulty_normal" in nodes else False,
+          "normal is selected")
+    check(re.search(r"5\D+6.6\D+60\D+30", text(nodes, "difficulty_normal") or "") is not None,
+          f"normal lists its rules ({text(nodes, 'difficulty_normal')})")
+    shot("16-settings")
+    tap(nodes["reset_records"])
+    time.sleep(1)
+    root = ET.fromstring(sh("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml"))
+    confirm = next((n for n in root.iter("node") if n.get("resource-id") == "android:id/button1"), None)
+    if check(confirm is not None, "reset asks for confirmation"):
+        tap(confirm)
+        time.sleep(1)
+    sh("input keyevent 4")
+    time.sleep(1.5)
+    nodes = wait_for("best_moves")
+    check("No score" in (text(nodes, "best_moves") or ""), f"records were reset ({text(nodes, 'best_moves')})")
+
+
 def difficulty_test(normal_best):
     """Hard: 7x7 board with 6 colors and 25 moves, played through. Best scores must be
     kept per difficulty. Easy: 4 colors and 35 moves."""
-    nodes = wait_for("difficulty_toggle")
-    if "difficulty_toggle" not in nodes:
+    nodes = wait_for("difficulty_summary")
+    if "difficulty_summary" not in nodes:
         return
-    check("Normal" in (text(nodes, "difficulty_toggle") or ""), f"default difficulty ({text(nodes, 'difficulty_toggle')})")
-    tap(nodes["difficulty_toggle"])
-    time.sleep(1)
-    nodes = wait_for("difficulty_toggle")
-    check("Hard" in (text(nodes, "difficulty_toggle") or ""), f"toggle to hard ({text(nodes, 'difficulty_toggle')})")
+    check("Normal" in (text(nodes, "difficulty_summary") or ""), f"default difficulty ({text(nodes, 'difficulty_summary')})")
+    nodes = choose_difficulty("difficulty_hard")
+    check("Hard" in (text(nodes, "difficulty_summary") or ""), f"switched to hard ({text(nodes, 'difficulty_summary')})")
     check("25" in (text(nodes, "mode_moves") or ""), f"hard: moves button shows 25 ({text(nodes, 'mode_moves')})")
     check("45" in (text(nodes, "mode_timed") or ""), f"hard: timed button shows 45 s ({text(nodes, 'mode_timed')})")
     check(str(normal_best) not in (text(nodes, "best_moves") or ""),
@@ -355,10 +438,8 @@ def difficulty_test(normal_best):
 
     nodes = wait_for("best_moves")
     check(str(hard) in (text(nodes, "best_moves") or ""), f"menu shows hard best {hard} ({text(nodes, 'best_moves')})")
-    tap(nodes["difficulty_toggle"])
-    time.sleep(1)
-    nodes = wait_for("difficulty_toggle")
-    check("Easy" in (text(nodes, "difficulty_toggle") or ""), f"toggle to easy ({text(nodes, 'difficulty_toggle')})")
+    nodes = choose_difficulty("difficulty_easy")
+    check("Easy" in (text(nodes, "difficulty_summary") or ""), f"switched to easy ({text(nodes, 'difficulty_summary')})")
     check("35" in (text(nodes, "mode_moves") or ""), f"easy: moves button shows 35 ({text(nodes, 'mode_moves')})")
     best_easy = text(nodes, "best_moves") or ""
     check(str(hard) not in best_easy and str(normal_best) not in best_easy, f"easy has its own best score ({best_easy})")
@@ -372,15 +453,11 @@ def difficulty_test(normal_best):
     used = {k for row in grid for k in row}
     check(-1 not in used and len(used) <= 4, f"easy: board uses at most 4 colors ({sorted(used)})")
     shot("13-board-easy")
-    sh("input keyevent 4")
-    time.sleep(1.5)
+    leave_game()
 
     # Back to normal: its best score is untouched.
-    nodes = wait_for("difficulty_toggle")
-    tap(nodes["difficulty_toggle"])
-    time.sleep(1)
-    nodes = wait_for("best_moves")
-    check("Normal" in (text(nodes, "difficulty_toggle") or ""), "toggle back to normal")
+    nodes = choose_difficulty("difficulty_normal")
+    check("Normal" in (text(nodes, "difficulty_summary") or ""), "switched back to normal")
     check(str(normal_best) in (text(nodes, "best_moves") or ""),
           f"normal best {normal_best} unchanged ({text(nodes, 'best_moves')})")
     set_board(6, 5)
@@ -400,7 +477,7 @@ def main():
     time.sleep(2)
 
     nodes = dump()
-    for rid in ("mode_timed", "mode_moves", "mode_endless", "sound_toggle"):
+    for rid in ("mode_timed", "mode_moves", "mode_endless", "settings_button", "difficulty_summary"):
         check(rid in nodes, f"menu shows {rid}")
     shot("01-menu")
 
@@ -429,8 +506,7 @@ def main():
     time.sleep(2.5)
     nodes = wait_for("score_value")
     check(text(nodes, "score_value") == "0" and text(nodes, "limit_value") == "30", "play again resets HUD")
-    sh("input keyevent 4")
-    time.sleep(1.5)
+    leave_game()
     nodes = wait_for("best_moves")
     best = text(nodes, "best_moves") or ""
     check(str(observed) in best, f"menu shows best score ({best})")
@@ -453,20 +529,36 @@ def main():
     left = text(nodes, "limit_value")
     check(left is not None and int(left) < 60, f"timer runs after first move ({left})")
     shot("07-timed")
+
+    # Back pauses instead of ending the game (issue #6); the clock stands still.
     sh("input keyevent 4")
-    time.sleep(1)
+    nodes = wait_for("resume")
+    frozen = text(nodes, "limit_value")
+    shot("14-paused")
+    time.sleep(3)
+    nodes = dump()
+    check("resume" in nodes and text(nodes, "limit_value") == frozen,
+          f"back pauses the game and the clock ({frozen} -> {text(nodes, 'limit_value')})")
+    if "resume" in nodes:
+        tap(nodes["resume"])
+    time.sleep(3)
+    nodes = dump()
+    now = text(nodes, "limit_value")
+    check(now is not None and frozen is not None and int(now) < int(frozen), f"clock runs again after resume ({frozen} -> {now})")
+    leave_game()
 
     # --- Endless mode -------------------------------------------------------------
     nodes = wait_for("mode_endless")
     tap(nodes["mode_endless"])
     time.sleep(2.5)
     shot("08-endless")
+    resume_test()
     if SDK >= 29:
         backtrack_test()
-    sh("input keyevent 4")
-    time.sleep(1)
+    leave_game()
 
     difficulty_test(normal_best=observed)
+    settings_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))

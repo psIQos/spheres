@@ -65,6 +65,27 @@ object Prefs {
     fun setDifficulty(context: Context, difficulty: Difficulty) =
         prefs(context).edit().putString("difficulty", difficulty.name).apply()
 
+    /** Deletes the best scores of all modes and difficulties. */
+    fun resetBest(context: Context) {
+        val editor = prefs(context).edit()
+        for (m in GameMode.entries) for (d in Difficulty.entries) editor.remove(bestKey(m, d))
+        editor.apply()
+    }
+
+    fun savedGame(context: Context, mode: GameMode): SavedGame? =
+        SavedGame.decode(prefs(context).getString("saved_${mode.name}", null))
+
+    fun saveGame(context: Context, mode: GameMode, game: SavedGame) =
+        prefs(context).edit().putString("saved_${mode.name}", game.encode()).apply()
+
+    fun clearSavedGame(context: Context, mode: GameMode) =
+        prefs(context).edit().remove("saved_${mode.name}").apply()
+
+    fun vibrationEnabled(context: Context): Boolean = prefs(context).getBoolean("vibration", true)
+
+    fun setVibrationEnabled(context: Context, enabled: Boolean) =
+        prefs(context).edit().putBoolean("vibration", enabled).apply()
+
     fun soundEnabled(context: Context): Boolean = prefs(context).getBoolean("sound", true)
 
     fun setSoundEnabled(context: Context, enabled: Boolean) =

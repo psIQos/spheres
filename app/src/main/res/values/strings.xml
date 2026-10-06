@@ -13,8 +13,6 @@
     <string name="difficulty_normal">Normal</string>
     <string name="difficulty_hard">Hard</string>
     <string name="no_score">No score yet</string>
-    <string name="sound_on">Sound: on</string>
-    <string name="sound_off">Sound: off</string>
     <string name="label_time">Time</string>
     <string name="label_moves_left">Moves</string>
     <string name="label_moves">Moves</string>
@@ -25,4 +23,22 @@
     <string name="play_again">Play again</string>
     <string name="menu">Menu</string>
     <string name="how_to">Connect dots of the same color. Close a square to clear every dot of that color.</string>
+    <string name="pause">Pause</string>
+    <string name="paused">Paused</string>
+    <string name="resume">Resume</string>
+    <string name="new_round">New round</string>
+    <string name="pause_hint">Your game is saved and can be resumed from the menu.</string>
+    <string name="saved_game">Game in progress · %1$d points · tap to resume</string>
+    <string name="saved_game_at">Game in progress (%2$s) · %1$d points · tap to resume</string>
+    <string name="settings">Settings</string>
+    <string name="settings_difficulty">Difficulty</string>
+    <string name="difficulty_details">%1$d colors · %2$d×%2$d · %3$d s · %4$d moves</string>
+    <string name="settings_sound">Sound</string>
+    <string name="settings_vibration">Vibration</string>
+    <string name="settings_records">Records</string>
+    <string name="reset_records">Reset all records</string>
+    <string name="reset_records_confirm">Delete the records of all modes and difficulties?</string>
+    <string name="reset_records_done">Records deleted</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
 </resources>

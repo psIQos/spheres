@@ -14,9 +14,16 @@ Schließt du ein **Quadrat** (eine geschlossene Schleife), werden *alle* Punkte 
 | Züge   | begrenzte Anzahl Züge          |
 | Endlos | ohne Limit                     |
 
+Mit „Pause“ oder der Zurück-Taste wird ein laufendes Spiel pausiert (Uhr steht). Der Spielstand wird je
+Modus gespeichert, auch wenn Android die App beendet, und lässt sich im Menü fortsetzen.
+
+## Einstellungen
+
+Schwierigkeit, Ton, Vibration und „Alle Rekorde zurücksetzen“ (mit Sicherheitsabfrage).
+
 ## Schwierigkeit
 
-Im Menü umschaltbar, gilt für alle Modi:
+In den Einstellungen wählbar, gilt für alle Modi:
 
 |                | Leicht | Normal | Schwer |
 |----------------|--------|--------|--------|
@@ -28,7 +35,7 @@ Im Menü umschaltbar, gilt für alle Modi:
 Weniger Farben ergeben mehr lange Pfade und Quadrate. Für jede Kombination aus Modus und Schwierigkeit
 wird ein eigener Rekord gespeichert. Rekorde aus Versionen vor der Schwierigkeitseinstellung zählen als „Normal“.
 
-Mit Ton (synthetisierte, ansteigende Noten) und haptischem Feedback; Ton lässt sich im Menü abschalten.
+Mit Ton (synthetisierte, ansteigende Noten) und haptischem Feedback, beides in den Einstellungen abschaltbar.
 
 ## Installieren
 
@@ -68,6 +75,8 @@ Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.git
 - prüft nach jedem Zug Punktestand und verbleibende Züge, danach Spielende, Rekord, „Nochmal“ und den Timer,
 - wischt sichtbar ungenau über einen Pfad zurück,
 - spielt eine Runde auf „Schwer“ (7×7, 6 Farben), prüft „Leicht“ und dass die Rekorde je Schwierigkeit getrennt bleiben,
+- pausiert (Uhr muss stehen), verlässt ein Spiel, beendet die App hart und setzt mit gleichem Brett und Punktestand fort,
+- prüft das Einstellungsmenü und das Zurücksetzen der Rekorde,
 - startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.
 
 Die Screenshots liegen als Artefakt `screenshots-api-*` am Lauf.

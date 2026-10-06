@@ -35,7 +35,7 @@
             </LinearLayout>
 
             <TextView
-                android:id="@+id/back"
+                android:id="@+id/pause_button"
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
                 android:layout_centerHorizontal="true"
@@ -44,14 +44,14 @@
                 android:gravity="center"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp"
-                android:text="@string/back"
+                android:text="@string/pause"
                 android:textColor="@color/text_secondary"
                 android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/difficulty_label"
                 style="@style/HudLabel"
-                android:layout_below="@id/back"
+                android:layout_below="@id/pause_button"
                 android:layout_centerHorizontal="true" />
 
             <LinearLayout
@@ -135,5 +135,59 @@
             android:background="@drawable/btn_grey"
             android:text="@string/menu"
             android:textColor="@color/text_primary" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/pause_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/scrim"
+        android:clickable="true"
+        android:focusable="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingStart="48dp"
+        android:paddingEnd="48dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="40dp"
+            android:fontFamily="sans-serif-light"
+            android:text="@string/paused"
+            android:textColor="@color/text_primary"
+            android:textSize="40sp" />
+
+        <TextView
+            android:id="@+id/resume"
+            style="@style/ModeButton"
+            android:background="@drawable/btn_green"
+            android:text="@string/resume" />
+
+        <TextView
+            android:id="@+id/new_round"
+            style="@style/ModeButton"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/btn_grey"
+            android:text="@string/new_round"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/pause_to_menu"
+            style="@style/ModeButton"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/btn_grey"
+            android:text="@string/menu"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:text="@string/pause_hint"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp" />
     </LinearLayout>
 </FrameLayout>

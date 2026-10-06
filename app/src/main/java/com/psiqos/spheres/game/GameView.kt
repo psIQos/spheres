@@ -80,8 +80,16 @@ class GameView @JvmOverloads constructor(
         dropIn()
     }
 
-    fun newGame(size: Int = 6, colors: Int = 5) {
+    /** Vibrate when connecting dots. */
+    var haptics = true
+
+    /** Current dot colors, row by row, e.g. to save the game. */
+    fun colors(): List<IntArray> = List(board.rows) { r -> IntArray(board.cols) { c -> board[r, c] } }
+
+    /** Starts a new board, or continues one with the given [restore] colors. */
+    fun newGame(size: Int = 6, colors: Int = 5, restore: List<IntArray>? = null) {
         board = Board(rows = size, cols = size, colorCount = colors)
+        if (restore != null) board.setColors(restore.toTypedArray())
         tracker = PathTracker(board)
         updateGeometry()
         touched = false
@@ -177,13 +185,13 @@ class GameView @JvmOverloads constructor(
             addPulse(board.path.last())
             if (square && !wasSquare) {
                 Sound.playSquare()
-                performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+                if (haptics) performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                 for (r in 0 until board.rows) for (c in 0 until board.cols) {
                     if (board[r, c] == board.pathColor) addPulse(Cell(r, c))
                 }
             } else {
                 Sound.playNote(board.path.size - 1)
-                performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                if (haptics) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
             }
         } else {
             Sound.playNote(board.path.size - 1)
