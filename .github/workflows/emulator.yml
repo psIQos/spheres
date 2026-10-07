@@ -58,11 +58,12 @@ jobs:
       # so install it here with retries; the runner action then finds it up to date.
       - name: Install emulator
         run: |
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           for i in 1 2 3; do
-            if out=$(sdkmanager --install emulator --channel=0 2>&1) && ! grep -qi "error" <<< "$out"; then
+            if out=$("$sdkmanager" --install emulator --channel=0 2>&1) && ! grep -qi "error" <<< "$out"; then
               exit 0
             fi
-            echo "emulator install attempt $i failed:"; grep -i "error" <<< "$out" || true
+            echo "emulator install attempt $i failed:"; tail -5 <<< "$out"
             sleep 15
           done
           exit 1
