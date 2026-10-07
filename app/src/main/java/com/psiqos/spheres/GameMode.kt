@@ -100,6 +100,18 @@ object Prefs {
 
     fun setSoundEnabled(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean("sound", enabled).apply()
+
+    /** Colors that stay distinct with color blindness, see [com.psiqos.spheres.game.Palette.COLORBLIND]. */
+    fun colorblindColors(context: Context): Boolean = prefs(context).getBoolean("colorblind_colors", false)
+
+    fun setColorblindColors(context: Context, enabled: Boolean) =
+        prefs(context).edit().putBoolean("colorblind_colors", enabled).apply()
+
+    /** A symbol on each dot, so colors can be told apart by shape. */
+    fun dotSymbols(context: Context): Boolean = prefs(context).getBoolean("dot_symbols", false)
+
+    fun setDotSymbols(context: Context, enabled: Boolean) =
+        prefs(context).edit().putBoolean("dot_symbols", enabled).apply()
 }
 
 val Difficulty.label: Int

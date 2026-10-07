@@ -12,6 +12,7 @@ import android.widget.RadioGroup
 import android.widget.Switch
 import android.widget.Toast
 import com.psiqos.spheres.game.Haptics
+import com.psiqos.spheres.game.Palette
 
 class SettingsActivity : Activity() {
 
@@ -23,6 +24,7 @@ class SettingsActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Palette.colorblind = Prefs.colorblindColors(this)
         setContentView(R.layout.activity_settings)
 
         findViewById<android.view.View>(R.id.settings_back).setOnClickListener { finish() }
@@ -46,6 +48,26 @@ class SettingsActivity : Activity() {
                 Prefs.setVibrationEnabled(this@SettingsActivity, on)
                 // Let the player feel what they switched on.
                 if (on) Haptics(this@SettingsActivity).square()
+            }
+        }
+
+        val preview = findViewById<DotRowView>(R.id.accessibility_preview).apply {
+            count = Palette.STANDARD.size
+            symbols = Prefs.dotSymbols(this@SettingsActivity)
+        }
+        findViewById<Switch>(R.id.colorblind_switch).apply {
+            isChecked = Prefs.colorblindColors(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on ->
+                Prefs.setColorblindColors(this@SettingsActivity, on)
+                Palette.colorblind = on
+                preview.invalidate()
+            }
+        }
+        findViewById<Switch>(R.id.symbols_switch).apply {
+            isChecked = Prefs.dotSymbols(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on ->
+                Prefs.setDotSymbols(this@SettingsActivity, on)
+                preview.symbols = on
             }
         }
 

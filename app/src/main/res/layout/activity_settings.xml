@@ -87,6 +87,35 @@
         <TextView
             style="@style/HudLabel"
             android:layout_marginBottom="8dp"
+            android:text="@string/settings_accessibility" />
+
+        <Switch
+            android:id="@+id/colorblind_switch"
+            style="@style/SettingsSwitch"
+            android:text="@string/settings_colorblind" />
+
+        <Switch
+            android:id="@+id/symbols_switch"
+            style="@style/SettingsSwitch"
+            android:text="@string/settings_symbols" />
+
+        <com.psiqos.spheres.DotRowView
+            android:id="@+id/accessibility_preview"
+            android:layout_width="240dp"
+            android:layout_height="32dp"
+            android:layout_marginTop="4dp"
+            android:layout_marginBottom="8dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="16dp"
+            android:background="#14000000" />
+
+        <TextView
+            style="@style/HudLabel"
+            android:layout_marginBottom="8dp"
             android:text="@string/settings_records" />
 
         <TextView

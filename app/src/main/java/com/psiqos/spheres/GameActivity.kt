@@ -76,6 +76,7 @@ class GameActivity : Activity(), GameView.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Palette.colorblind = Prefs.colorblindColors(this) // before the views pick their colors
         setContentView(R.layout.activity_game)
         mode = runCatching { GameMode.valueOf(intent.getStringExtra(GameMode.EXTRA)!!) }.getOrDefault(GameMode.TIMED)
 
@@ -119,6 +120,7 @@ class GameActivity : Activity(), GameView.Listener {
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
         gameView.haptics.enabled = Prefs.vibrationEnabled(this)
+        gameView.symbols = Prefs.dotSymbols(this)
         gameView.listener = this
 
         val saved = Prefs.savedGame(this, mode)

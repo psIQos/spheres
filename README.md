@@ -41,6 +41,13 @@ für das Punktekonto.
 
 Schwierigkeit, Ton, Vibration und „Alle Rekorde zurücksetzen“ (mit Sicherheitsabfrage).
 
+Unter **Barrierefreiheit** (beides unabhängig schaltbar, Vorschau direkt darunter):
+
+- **Farbenblind-freundliche Farben**: kräftigere Palette, deren Farben auch bei Rot-Grün- und
+  Blau-Gelb-Schwäche klar verschieden bleiben (per Simulation in `PaletteTest` geprüft).
+- **Symbole auf den Punkten**: jede Farbe trägt ein eigenes Zeichen (Rot ▲, Gelb ●, Grün ■, Blau ✚,
+  Lila ○, Türkis ★); die Punkte werden dafür etwas größer.
+
 ## Schwierigkeit
 
 In den Einstellungen wählbar, gilt für alle Modi:
@@ -97,6 +104,7 @@ Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.git
 - spielt eine Runde auf „Schwer“ (7×7, 6 Farben), prüft „Leicht“ und dass die Rekorde je Schwierigkeit getrennt bleiben,
 - pausiert (Uhr muss stehen), verlässt ein Spiel, beendet die App hart und setzt mit gleichem Brett und Punktestand fort,
 - prüft das Einstellungsmenü und das Zurücksetzen der Rekorde,
+- schaltet farbenblind-freundliche Farben und Symbole ein und prüft beides auf dem Spielfeld,
 - setzt jedes Power-up ein und prüft Kosten, Punkte, Züge und den angehaltenen Timer,
 - prüft (ab Android 12) im Vibrations-Log des Systems, dass Verbinden vibriert und der Schalter in den Einstellungen das abstellt,
 - startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.

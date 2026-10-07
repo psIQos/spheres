@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
+import com.psiqos.spheres.game.Palette
 
 class MainActivity : Activity() {
 
@@ -48,6 +49,11 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
+        Palette.colorblind = Prefs.colorblindColors(this)
+        findViewById<DotRowView>(R.id.dot_row).apply {
+            symbols = Prefs.dotSymbols(this@MainActivity)
+            invalidate()
+        }
         val difficulty = Prefs.difficulty(this)
         findViewById<TextView>(R.id.difficulty_summary).text =
             getString(R.string.difficulty, getString(difficulty.label))
