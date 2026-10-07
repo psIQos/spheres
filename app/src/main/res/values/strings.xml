@@ -35,6 +35,9 @@
     <string name="difficulty_details">%1$d colors · %2$d×%2$d · %3$d s · %4$d moves</string>
     <string name="settings_sound">Sound</string>
     <string name="settings_vibration">Vibration</string>
+    <string name="settings_accessibility">Accessibility</string>
+    <string name="settings_colorblind">Colorblind-friendly colors</string>
+    <string name="settings_symbols">Symbols on dots</string>
     <string name="settings_records">Records</string>
     <string name="reset_records">Reset all records</string>
     <string name="reset_records_confirm">Delete the records of all modes and difficulties?</string>

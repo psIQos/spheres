@@ -26,6 +26,9 @@ os.makedirs(OUT, exist_ok=True)
 # Must match game/Palette in GameView.kt.
 PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0xA8, 0xEC), (0x9E, 0x6C, 0xDB),
            (0x27, 0xB9, 0xA6)]
+# Palette.COLORBLIND, switched on in the settings (issue #18).
+COLORBLIND = [(0xEE, 0x1A, 0x10), (0xFF, 0xCD, 0x00), (0x88, 0xB8, 0x71), (0x22, 0x4D, 0xCE), (0xB0, 0x08, 0x64),
+              (0x06, 0xE0, 0xFF)]
 # Board of the difficulty being played (see Difficulty in GameMode.kt).
 ROWS = COLS = 6
 COLORS = 5
@@ -152,13 +155,15 @@ def geometry(nodes):
     return lambda row, col: (int(ox + (col + 0.5) * cell), int(oy + (row + 0.5) * cell))
 
 
-def read_board(img, pos):
+def read_board(img, pos, palette=PALETTE, dy=0):
+    """Dot colors as palette indices (-1: none matches), sampled [dy] pixels below the dot centers."""
     grid = []
     for r in range(ROWS):
         row = []
         for c in range(COLS):
-            px = img.getpixel(pos(r, c))
-            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in PALETTE[:COLORS]]
+            x, y = pos(r, c)
+            px = img.getpixel((x, y + dy))
+            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in palette[:COLORS]]
             k = min(range(COLORS), key=d.__getitem__)
             row.append(k if d[k] < 3 * 40 ** 2 else -1)
         grid.append(row)
@@ -401,6 +406,7 @@ def settings_test():
     check(re.search(r"5\D+6.6\D+60\D+30", text(nodes, "difficulty_normal") or "") is not None,
           f"normal lists its rules ({text(nodes, 'difficulty_normal')})")
     shot("16-settings")
+    nodes = scroll_to("reset_records")
     tap(nodes["reset_records"])
     time.sleep(1)
     root = ET.fromstring(sh("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml"))
@@ -412,6 +418,83 @@ def settings_test():
     time.sleep(1.5)
     nodes = wait_for("best_moves")
     check("No score" in (text(nodes, "best_moves") or ""), f"records were reset ({text(nodes, 'best_moves')})")
+
+
+def scroll_to(rid):
+    """Scrolls the settings down until the view shows up."""
+    nodes = dump()
+    for _ in range(3):
+        if rid in nodes:
+            return nodes
+        sh("input swipe 500 1500 500 600 400")
+        time.sleep(1)
+        nodes = dump()
+    return wait_for(rid)
+
+
+def is_checked(nodes, rid):
+    return rid in nodes and nodes[rid].get("checked") == "true"
+
+
+def set_accessibility(on):
+    """Switches colorblind colors and dot symbols in the settings, back to the menu."""
+    nodes = open_settings()
+    nodes = scroll_to("symbols_switch")
+    for rid in ("colorblind_switch", "symbols_switch"):
+        if rid in nodes and is_checked(nodes, rid) != on:
+            tap(nodes[rid])
+    time.sleep(0.5)
+    nodes = dump()
+    for rid in ("colorblind_switch", "symbols_switch"):
+        check(is_checked(nodes, rid) == on, f"{rid} switched {'on' if on else 'off'}")
+    if on:
+        shot("17-accessibility-settings")
+    sh("input keyevent 4")
+    time.sleep(1.5)
+    return wait_for("mode_endless")
+
+
+def accessibility_test():
+    """Colorblind-friendly colors and symbols on the dots (issue #18)."""
+    nodes = set_accessibility(True)
+    tap(nodes["mode_endless"])
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return
+    pos = geometry(nodes)
+    cell = pos(0, 1)[0] - pos(0, 0)[0]
+    radius = 0.25 * cell  # GameView: larger dots with symbols
+    # Below the symbol, which stays within about half the radius.
+    dy = int(0.8 * radius)
+    grid, img = None, None
+    for _ in range(10):  # the board falls in first
+        img = screencap()
+        grid = read_board(img, pos, COLORBLIND, dy)
+        if all(k >= 0 for row in grid for k in row):
+            break
+        time.sleep(1)
+    shot("18-accessibility-board", img)
+    check(all(k >= 0 for row in grid for k in row), f"board shows the colorblind palette ({grid})")
+    standard = read_board(img, pos, PALETTE, dy)
+    check(sum(k >= 0 for row in standard for k in row) < ROWS * COLS, "board no longer shows the standard palette")
+
+    # Each color has its symbol: filled at the center, a ring around it for purple (index 4).
+    def far(px, color):
+        return sum((a - b) ** 2 for a, b in zip(px, color)) > 3 * 40 ** 2
+
+    missing = []
+    for r in range(ROWS):
+        for c in range(COLS):
+            k = grid[r][c]
+            if k < 0:
+                continue
+            x, y = pos(r, c)
+            probe = (x + int(0.36 * radius), y) if k == 4 else (x, y)
+            if not far(img.getpixel(probe), COLORBLIND[k]):
+                missing.append((r, c, k))
+    check(not missing, f"every dot shows its symbol (missing: {missing})")
+    leave_game()
+    set_accessibility(False)
 
 
 def our_vibrations():
@@ -824,6 +907,7 @@ def main():
     difficulty_test(normal_best=observed)
     settings_test()
     vibration_test()
+    accessibility_test()
     powerup_test()
 
     crashes = crash_log()

@@ -43,7 +43,7 @@ Gebaut und getestet wird über GitHub Actions:
 | Emulator test | `.github/workflows/emulator.yml` | `.github/e2e/play.py` auf API 26 und 35 |
 
 - **Unit-Tests lokal** ohne SDK: Spiel-Logik liegt bewusst in Android-freien Klassen
-  (`Board`, `PathTracker`, `Tones`, `SavedGame`, `PowerUp`, `Difficulty`). Neue Logik ebenso trennen
+  (`Board`, `PathTracker`, `Tones`, `Palette`, `SavedGame`, `PowerUp`, `Difficulty`). Neue Logik ebenso trennen
   und in `app/src/test` testen.
 - **Emulator-Test (`play.py`)** spielt die App per adb: liest Punktfarben aus Screenshots, prüft HUD
   per `uiautomator`. Neue Features bekommen dort eine Prüfung. Der Emulator ist langsam – nicht feste
@@ -71,6 +71,7 @@ Die APK ist mit `app/spheres.keystore` signiert (bewusst im Repo), damit Updates
 - `game/Board.kt` – Spielfeld, Pfade, Quadrate, Nachrutschen, Power-up-Effekte
 - `game/PathTracker.kt` – Touch → Pfad (Trefferzonen, Zurückwischen), unit-getestet mit simulierten Gesten
 - `game/GameView.kt` – Zeichnen, Animationen, Touch, Ziel-Modus für Power-ups
+- `game/Palette.kt`, `game/DotSymbols.kt` – Punktfarben (Standard/farbenblind), Symbole auf den Punkten
 - `game/Sound.kt`, `game/Tones.kt`, `game/Haptics.kt` – synthetisierte Töne (SoundPool), Vibration
 - `GameActivity.kt` – HUD, Timer, Pause/Fortsetzen, Speichern, Power-ups
 - `GameMode.kt` – Modi, `Difficulty`, `Prefs` (Rekorde/Konto je Schwierigkeit, Einstellungen)

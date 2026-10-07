@@ -3,7 +3,6 @@ package com.psiqos.spheres.game
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.os.SystemClock
@@ -95,6 +94,16 @@ class GameView @JvmOverloads constructor(
             }
         }
 
+    /** Draws a symbol on each dot so colors can be told apart by shape; switched in the settings. */
+    var symbols = false
+        set(value) {
+            field = value
+            updateGeometry()
+            invalidate()
+        }
+
+    private val dotSymbols = DotSymbols()
+
     /** Vibration feedback; switched on and off in the settings. */
     val haptics = Haptics(context)
 
@@ -136,8 +145,9 @@ class GameView @JvmOverloads constructor(
         tracker.originX = originX
         tracker.originY = originY
         tracker.cellSize = cellSize
-        dotRadius = cellSize * 0.2f
-        linePaint.strokeWidth = dotRadius * 0.55f
+        // Larger dots leave room for the symbols.
+        dotRadius = cellSize * if (symbols) 0.25f else 0.2f
+        linePaint.strokeWidth = cellSize * 0.11f
         framePaint.strokeWidth = 10 * density
     }
 
@@ -372,7 +382,9 @@ class GameView @JvmOverloads constructor(
                 canvas.drawCircle(e.x, e.y, dotRadius * (1f + 1.1f * t), fillPaint)
             } else {
                 fillPaint.alpha = 255
-                canvas.drawCircle(e.x, e.y, dotRadius * (1f - t) * (1f + 0.3f * (1 - t)), fillPaint)
+                val radius = dotRadius * (1f - t) * (1f + 0.3f * (1 - t))
+                canvas.drawCircle(e.x, e.y, radius, fillPaint)
+                if (symbols) dotSymbols.draw(canvas, e.color, e.x, e.y, radius)
             }
         }
 
@@ -383,6 +395,7 @@ class GameView @JvmOverloads constructor(
             if (y < -cellSize) continue
             dotPaint.color = Palette.dot(board[r, c])
             canvas.drawCircle(centerX(c), y, dotRadius, dotPaint)
+            if (symbols) dotSymbols.draw(canvas, board[r, c], centerX(c), y, dotRadius)
             if (target != Target.NONE) {
                 // Selectable for a power-up: a softly pulsing ring.
                 val t = (now % 900) / 900f
@@ -400,20 +413,4 @@ class GameView @JvmOverloads constructor(
         const val KIND_PULSE = 0
         const val KIND_POP = 1
     }
-}
-
-object Palette {
-    private val dots = intArrayOf(
-        0xFFEC5B57.toInt(), // red
-        0xFFF4C842.toInt(), // yellow
-        0xFF83D66A.toInt(), // green
-        0xFF5CA8EC.toInt(), // blue
-        0xFF9E6CDB.toInt(), // purple
-        0xFF27B9A6.toInt(), // teal (hard only), in the widest hue gap between green and blue
-    )
-
-    fun dot(index: Int): Int = dots[index.mod(dots.size)]
-
-    fun withAlpha(color: Int, alpha: Int): Int =
-        Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))
 }

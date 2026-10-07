@@ -33,6 +33,9 @@
     <string name="difficulty_details">%1$d Farben · %2$d×%2$d · %3$d s · %4$d Züge</string>
     <string name="settings_sound">Ton</string>
     <string name="settings_vibration">Vibration</string>
+    <string name="settings_accessibility">Barrierefreiheit</string>
+    <string name="settings_colorblind">Farbenblind-freundliche Farben</string>
+    <string name="settings_symbols">Symbole auf den Punkten</string>
     <string name="settings_records">Rekorde</string>
     <string name="reset_records">Alle Rekorde zurücksetzen</string>
     <string name="reset_records_confirm">Die Rekorde aller Modi und Schwierigkeiten löschen?</string>
