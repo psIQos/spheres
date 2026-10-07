@@ -29,7 +29,7 @@ Leiste unter dem Spielfeld:
 | Power-up       | Kosten | Wirkung                                        | Modi        |
 |----------------|--------|------------------------------------------------|-------------|
 | Schrumpfer     | 30     | einen gewählten Punkt entfernen                | alle        |
-| Zeitstopp      | 60     | Uhr steht 5 Sekunden                           | Zeit        |
+| Zeitstopp      | 60     | Uhr steht 5 Sekunden (ablaufender Balken, eigener Ton und Vibration) | Zeit |
 | +5 Züge        | 60     | fünf zusätzliche Züge                          | Züge        |
 | Expander       | 120    | alle Punkte der angetippten Farbe entfernen    | alle        |
 

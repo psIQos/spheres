@@ -11,6 +11,7 @@ import com.psiqos.spheres.game.GameView
 import com.psiqos.spheres.game.MoveResult
 import com.psiqos.spheres.game.Palette
 import com.psiqos.spheres.game.Sound
+import com.psiqos.spheres.game.TimeStopBar
 
 class GameActivity : Activity(), GameView.Listener {
 
@@ -41,6 +42,10 @@ class GameActivity : Activity(), GameView.Listener {
     private var frozenUntil = 0L
     /** Time stop left over when the clock was stopped (pause, leaving the app). */
     private var frozenLeftMs = 0L
+    /** Length of the running time stop, for the bar (more than 5 s if stacked). */
+    private var timeStopTotalMs = 0L
+    private var timeStopActive = false
+    private lateinit var timeStopBar: TimeStopBar
     private lateinit var powerUpHint: TextView
     private lateinit var walletValue: TextView
     private lateinit var powerUpButtons: Map<PowerUp, TextView>
@@ -56,6 +61,7 @@ class GameActivity : Activity(), GameView.Listener {
             val now = SystemClock.elapsedRealtime()
             remainingMs -= runningSince(now)
             lastTick = now
+            if (timeStopActive && now >= frozenUntil) endTimeStop()
             if (remainingMs <= 0) {
                 remainingMs = 0
                 ticking = false
@@ -98,6 +104,7 @@ class GameActivity : Activity(), GameView.Listener {
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
 
         powerUpHint = findViewById(R.id.powerup_hint)
+        timeStopBar = findViewById(R.id.time_stop_bar)
         walletValue = findViewById(R.id.wallet_value)
         val special = findViewById<TextView>(R.id.powerup_special)
         val offered = PowerUp.forMode(mode)
@@ -125,6 +132,11 @@ class GameActivity : Activity(), GameView.Listener {
             bonusMoves = saved.bonusMoves
             limit += bonusMoves
             frozenLeftMs = saved.timeStopLeftMs
+            if (frozenLeftMs > 0) {
+                timeStopTotalMs = PowerUp.TIME_STOP_SECONDS * 1000L
+                timeStopBar.hold(frozenLeftMs)
+                gameView.frost = true
+            }
             gameView.newGame(difficulty.size, difficulty.colors, restore = saved.colors)
             updateHud()
         } else {
@@ -149,6 +161,8 @@ class GameActivity : Activity(), GameView.Listener {
         bonusMoves = 0
         frozenUntil = 0L
         frozenLeftMs = 0L
+        timeStopActive = false
+        timeStopBar.hide()
         pendingTarget = null
         gameOver = false
         paused = false
@@ -158,6 +172,7 @@ class GameActivity : Activity(), GameView.Listener {
         overlay.visibility = View.GONE
         pauseOverlay.visibility = View.GONE
         gameView.newGame(difficulty.size, difficulty.colors)
+        gameView.frost = false
         updateHud()
     }
 
@@ -256,6 +271,12 @@ class GameActivity : Activity(), GameView.Listener {
                 pay(p)
                 val now = SystemClock.elapsedRealtime()
                 frozenUntil = maxOf(now, frozenUntil) + PowerUp.TIME_STOP_SECONDS * 1000L
+                timeStopTotalMs = frozenUntil - now
+                timeStopActive = true
+                timeStopBar.run(frozenUntil - now, timeStopTotalMs)
+                gameView.frost = true
+                Sound.playFreeze()
+                gameView.haptics.freeze()
             }
             PowerUp.EXTRA_MOVES -> {
                 if (moves >= limit) return
@@ -283,7 +304,7 @@ class GameActivity : Activity(), GameView.Listener {
     private fun pay(p: PowerUp) {
         if (!wallet.buy(p)) return
         Prefs.setWalletDots(this, difficulty, wallet.dots)
-        if (!p.needsTarget) {
+        if (p == PowerUp.EXTRA_MOVES) {
             Sound.playSquare()
             gameView.haptics.square()
         }
@@ -301,6 +322,15 @@ class GameActivity : Activity(), GameView.Listener {
         handler.postDelayed({ if (pendingTarget == null) powerUpHint.visibility = View.INVISIBLE }, 1500)
     }
 
+    /** The time stop is over: the clock runs again. */
+    private fun endTimeStop() {
+        timeStopActive = false
+        timeStopBar.hide()
+        gameView.frost = false
+        Sound.playThaw()
+        gameView.haptics.thaw()
+    }
+
     /** Clock time since the last tick that counts, i.e. outside a time stop. */
     private fun runningSince(now: Long): Long {
         val from = maxOf(lastTick, frozenUntil)
@@ -313,6 +343,8 @@ class GameActivity : Activity(), GameView.Listener {
         lastTick = SystemClock.elapsedRealtime()
         if (frozenLeftMs > 0) {
             frozenUntil = lastTick + frozenLeftMs
+            timeStopActive = true
+            timeStopBar.run(frozenLeftMs, timeStopTotalMs.coerceAtLeast(frozenLeftMs))
             frozenLeftMs = 0
         }
         handler.post(tick)
@@ -325,6 +357,10 @@ class GameActivity : Activity(), GameView.Listener {
         remainingMs -= runningSince(now)
         frozenLeftMs = maxOf(0, frozenUntil - now)
         frozenUntil = 0
+        if (timeStopActive) {
+            timeStopActive = false
+            timeStopBar.hold(frozenLeftMs)
+        }
         ticking = false
     }
 
@@ -379,6 +415,9 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         gameOver = true
         cancelTarget()
+        timeStopActive = false
+        timeStopBar.hide()
+        gameView.frost = false
         gameView.inputEnabled = false
         gameView.haptics.gameOver()
         Prefs.clearSavedGame(this, mode)

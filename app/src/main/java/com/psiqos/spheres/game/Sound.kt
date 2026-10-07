@@ -18,6 +18,8 @@ object Sound {
     private var pool: SoundPool? = null
     private val notes = IntArray(NOTE_COUNT)
     private var square = 0
+    private var freeze = 0
+    private var thaw = 0
 
     fun load(context: Context) {
         if (pool != null) return
@@ -45,6 +47,9 @@ object Sound {
             "square",
             Tones.render(doubleArrayOf(Tones.freq(12), Tones.freq(16), Tones.freq(19), Tones.freq(24)), 0.6),
         )
+        // Time stop: an icy glide down when the clock freezes, a short one up when it thaws.
+        freeze = loadTone("freeze", Tones.sweep(Tones.freq(24), Tones.freq(7), 0.7))
+        thaw = loadTone("thaw", Tones.sweep(Tones.freq(0), Tones.freq(12), 0.3, decay = 2.0))
     }
 
     fun release() {
@@ -55,6 +60,10 @@ object Sound {
     fun playNote(index: Int) = play(notes[index.coerceIn(0, NOTE_COUNT - 1)])
 
     fun playSquare() = play(square)
+
+    fun playFreeze() = play(freeze)
+
+    fun playThaw() = play(thaw)
 
     private fun play(id: Int) {
         if (!enabled || id == 0) return

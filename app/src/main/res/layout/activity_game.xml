@@ -72,6 +72,15 @@
             </LinearLayout>
         </RelativeLayout>
 
+        <com.psiqos.spheres.game.TimeStopBar
+            android:id="@+id/time_stop_bar"
+            android:layout_width="match_parent"
+            android:layout_height="8dp"
+            android:layout_marginStart="28dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginEnd="28dp"
+            android:visibility="gone" />
+
         <com.psiqos.spheres.game.GameView
             android:id="@+id/game_view"
             android:layout_width="match_parent"

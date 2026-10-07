@@ -572,6 +572,7 @@ def powerup_test():
         have = wallet(nodes)
         clock = nodes["limit_value"]
         before = text(nodes, "limit_value")
+        vibrations = our_vibrations()
         t0 = time.time()
         tap(nodes["powerup_special"])
         l, t, r, b = bounds(clock)
@@ -584,12 +585,17 @@ def powerup_test():
                 break
             time.sleep(0.5)
         shot("19-time-stop", img)
+        nodes = dump()
+        check("time_stop_bar" in nodes, "time stop shows the running-out bar")
+        if SDK >= 31:
+            check(our_vibrations() - vibrations, "time stop vibrates")
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
         while time.time() < t0 + 10:
             time.sleep(0.5)
         nodes = dump()
         elapsed = time.time() - t0
         after = text(nodes, "limit_value")
+        check("time_stop_bar" not in nodes, "the bar is gone when the time stop ends")
         if check(before is not None and after is not None, f"clock readable ({before}, {after})"):
             lost = int(before) - int(after)
             check(elapsed - 7 <= lost <= elapsed - 3,

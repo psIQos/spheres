@@ -11,6 +11,8 @@ class TonesTest {
         Tones.render(doubleArrayOf(Tones.pentatonic(0)), 0.35),
         Tones.render(doubleArrayOf(Tones.pentatonic(13)), 0.35),
         Tones.render(doubleArrayOf(Tones.freq(12), Tones.freq(16), Tones.freq(19), Tones.freq(24)), 0.6),
+        Tones.sweep(Tones.freq(24), Tones.freq(7), 0.7),
+        Tones.sweep(Tones.freq(0), Tones.freq(12), 0.3, decay = 2.0),
     )
 
     /** An abrupt end of a sample is heard as a click. */

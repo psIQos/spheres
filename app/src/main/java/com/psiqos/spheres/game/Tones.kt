@@ -44,6 +44,29 @@ object Tones {
         return pcm
     }
 
+    /**
+     * A tone gliding from [from] to [to] Hz, with a soft shimmer an octave up. Used for
+     * the time stop: falling when the clock freezes, rising when it runs again.
+     */
+    fun sweep(from: Double, to: Double, seconds: Double, volume: Double = 0.3, decay: Double = 3.0): ShortArray {
+        val count = (SAMPLE_RATE * seconds).toInt()
+        val fadeOut = (SAMPLE_RATE * 0.05).toInt()
+        val pcm = ShortArray(count)
+        var phase = 0.0
+        for (i in 0 until count) {
+            val t = i.toDouble() / SAMPLE_RATE
+            val f = from * (to / from).pow(t / seconds)
+            phase += 2 * PI * f / SAMPLE_RATE
+            val attack = (t / 0.01).coerceAtMost(1.0)
+            // Squared fade: slow tones are still loud near the end and need a softer landing.
+            val release = ((count - 1 - i).toDouble() / fadeOut).coerceIn(0.0, 1.0).let { it * it }
+            val envelope = attack * exp(-t * decay) * release
+            val v = (sin(phase) + 0.35 * sin(2 * phase) * (0.5 + 0.5 * sin(t * 40))) / 1.35
+            pcm[i] = (v * envelope * volume * Short.MAX_VALUE).toInt().toShort()
+        }
+        return pcm
+    }
+
     /** Wraps PCM data in a WAV file. */
     fun wav(pcm: ShortArray): ByteArray {
         val data = ByteBuffer.allocate(pcm.size * 2).order(ByteOrder.LITTLE_ENDIAN)

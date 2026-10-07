@@ -86,6 +86,15 @@ class GameView @JvmOverloads constructor(
         touched = false
     }
 
+    /** Tints the board while the time stop power-up holds the clock. */
+    var frost = false
+        set(value) {
+            if (field != value) {
+                field = value
+                invalidate()
+            }
+        }
+
     /** Vibration feedback; switched on and off in the settings. */
     val haptics = Haptics(context)
 
@@ -307,6 +316,12 @@ class GameView @JvmOverloads constructor(
         val dt = if (lastFrame == 0L) 0.016f else min(0.05f, (now - lastFrame) / 1000f)
         lastFrame = now
         var animating = step(dt)
+
+        if (frost) {
+            // Time stop: an icy blue tint over the board.
+            fillPaint.color = Palette.withAlpha(Palette.dot(3), 0x1C)
+            canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), fillPaint)
+        }
 
         // Square: tint the background and draw a frame in the square's color.
         val path = board.path

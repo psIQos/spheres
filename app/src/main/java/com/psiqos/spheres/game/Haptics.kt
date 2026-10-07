@@ -31,6 +31,12 @@ class Haptics(context: Context) {
     /** A square was closed: two strong pulses. */
     fun square() = waveform(longArrayOf(0, 35, 60, 45), intArrayOf(0, 255, 0, 255))
 
+    /** Time stop starts: three pulses fading out, like something freezing. */
+    fun freeze() = waveform(longArrayOf(0, 60, 50, 45, 50, 30), intArrayOf(0, 255, 0, 170, 0, 90))
+
+    /** Time stop ends: a quick double tap, the clock runs again. */
+    fun thaw() = waveform(longArrayOf(0, 25, 70, 25), intArrayOf(0, 200, 0, 200))
+
     /** The round is over. */
     fun gameOver() = oneShot(millis = 120, strength = 180)
 
