@@ -487,9 +487,9 @@ def powerup_test():
     # Earn dots for the test: every cleared dot goes into the account.
     start = wallet(nodes)
     need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +3 moves
-    for _ in range(120):
+    for i in range(120):
         nodes = dump()
-        if (wallet(nodes) or 0) >= need:
+        if i >= 3 and (wallet(nodes) or 0) >= need:
             break
         path = longest_path(read_board(screencap(), pos), limit=7 if SDK >= 29 else 2)
         drag([pos(r, c) for r, c in path])
@@ -545,19 +545,29 @@ def powerup_test():
     one_move()  # the continued game's clock starts with a touch
     nodes = dump()
     if check("powerup_special" in nodes, "timed offers time stop"):
+        # Reading the UI takes a second or two, so measure over a longer window:
+        # the clock has to lose about 5 s less than the real time that passed.
         have = wallet(nodes)
+        clock = nodes["limit_value"]
+        before = text(nodes, "limit_value")
+        t0 = time.time()
         tap(nodes["powerup_special"])
-        time.sleep(0.5)
+        img = screencap()
+        shot("19-time-stop", img)
+        l, t, r, b = bounds(clock)
+        blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
+                   if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
+        check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
+        while time.time() < t0 + 10:
+            time.sleep(0.5)
         nodes = dump()
-        frozen = text(nodes, "limit_value")
-        shot("19-time-stop")
-        time.sleep(3)
-        nodes = dump()
-        check(text(nodes, "limit_value") == frozen, f"time stop freezes the clock ({frozen} -> {text(nodes, 'limit_value')})")
+        elapsed = time.time() - t0
+        after = text(nodes, "limit_value")
+        if check(before is not None and after is not None, f"clock readable ({before}, {after})"):
+            lost = int(before) - int(after)
+            check(elapsed - 7 <= lost <= elapsed - 3,
+                  f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
         check(wallet(nodes) == have - 60, f"time stop costs 60 ({have} -> {wallet(nodes)})")
-        time.sleep(4)
-        later = text(dump(), "limit_value")
-        check(later is not None and frozen is not None and int(later) < int(frozen), f"clock runs again after 5 s ({frozen} -> {later})")
     leave_game()
 
     # +3 moves.
