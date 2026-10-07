@@ -826,8 +826,11 @@ def main():
 
     # Leaving the app and coming back continues directly; the clock waits for a touch.
     now = text(dump(), "limit_value")
-    for _ in range(3):  # a busy emulator sometimes drops the key press
-        sh("input keyevent 3")  # Home
+    for attempt in range(3):  # a busy emulator sometimes drops the key press
+        if attempt < 2:
+            sh("input keyevent 3")  # Home
+        else:  # the launcher itself, the way the Home key opens it
+            sh("am start -a android.intent.action.MAIN -c android.intent.category.HOME")
         time.sleep(1.5)
         away = text(dump(), "limit_value")  # None: launcher in front
         if away is None:
