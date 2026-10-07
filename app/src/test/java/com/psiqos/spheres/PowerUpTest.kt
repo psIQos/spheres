@@ -30,6 +30,26 @@ class PowerUpTest {
         assertEquals(listOf(PowerUp.SHRINKER, PowerUp.EXPANDER), PowerUp.forMode(GameMode.ENDLESS))
     }
 
+    @Test
+    fun extraMovesGivesFiveLikeTheOriginal() {
+        assertEquals(5, PowerUp.EXTRA_MOVES_COUNT)
+    }
+
+    @Test
+    fun endlessEarnsNoDots() {
+        assertFalse(PowerUp.earnsDots(GameMode.ENDLESS))
+        assertTrue(PowerUp.earnsDots(GameMode.TIMED))
+        assertTrue(PowerUp.earnsDots(GameMode.MOVES))
+    }
+
+    @Test
+    fun accountsAreSeparatePerDifficulty() {
+        val keys = Difficulty.entries.map { Prefs.walletKey(it) }
+        assertEquals(keys.size, keys.toSet().size)
+        // dots collected before accounts per difficulty existed stay with Normal
+        assertEquals("wallet", Prefs.walletKey(Difficulty.NORMAL))
+    }
+
     /** Cheap to strong, so the order on screen reads naturally. */
     @Test
     fun pricesRiseWithStrength() {

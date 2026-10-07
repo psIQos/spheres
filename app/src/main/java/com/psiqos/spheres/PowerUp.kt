@@ -9,7 +9,7 @@ enum class PowerUp(val cost: Int) {
     SHRINKER(30),
     /** Timed mode: stops the clock for [TIME_STOP_SECONDS]. */
     TIME_STOP(60),
-    /** Moves mode: [EXTRA_MOVES] more moves. */
+    /** Moves mode: [EXTRA_MOVES_COUNT] more moves. */
     EXTRA_MOVES(60),
     /** Removes all dots of the color the player taps. */
     EXPANDER(120);
@@ -19,7 +19,10 @@ enum class PowerUp(val cost: Int) {
 
     companion object {
         const val TIME_STOP_SECONDS = 5
-        const val EXTRA_MOVES_COUNT = 3
+        const val EXTRA_MOVES_COUNT = 5
+
+        /** Endless mode has no limit, so dots cleared there would be free money. */
+        fun earnsDots(mode: GameMode): Boolean = mode != GameMode.ENDLESS
 
         /** Power-ups offered in [mode], in the order shown below the board. */
         fun forMode(mode: GameMode): List<PowerUp> = when (mode) {
@@ -30,7 +33,7 @@ enum class PowerUp(val cost: Int) {
     }
 }
 
-/** The dot account: pure bookkeeping, persisted through [Prefs]. */
+/** The dot account of one difficulty: pure bookkeeping, persisted through [Prefs]. */
 class Wallet(dots: Int) {
     var dots = dots
         private set

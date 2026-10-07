@@ -97,7 +97,6 @@ class GameActivity : Activity(), GameView.Listener {
         findViewById<View>(R.id.play_again).setOnClickListener { restart() }
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
 
-        wallet = Wallet(Prefs.walletDots(this))
         powerUpHint = findViewById(R.id.powerup_hint)
         walletValue = findViewById(R.id.wallet_value)
         val special = findViewById<TextView>(R.id.powerup_special)
@@ -135,6 +134,7 @@ class GameActivity : Activity(), GameView.Listener {
     private fun setDifficulty(d: Difficulty) {
         difficulty = d
         limit = mode.limit(d)
+        wallet = Wallet(Prefs.walletDots(this, d))
         findViewById<TextView>(R.id.difficulty_label).setText(d.label)
     }
 
@@ -214,8 +214,10 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         score += result.removed.size
         moves++
-        wallet.earn(result.removed.size)
-        Prefs.setWalletDots(this, wallet.dots)
+        if (PowerUp.earnsDots(mode)) {
+            wallet.earn(result.removed.size)
+            Prefs.setWalletDots(this, difficulty, wallet.dots)
+        }
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
         save()
@@ -276,7 +278,7 @@ class GameActivity : Activity(), GameView.Listener {
 
     private fun pay(p: PowerUp) {
         if (!wallet.buy(p)) return
-        Prefs.setWalletDots(this, wallet.dots)
+        Prefs.setWalletDots(this, difficulty, wallet.dots)
         if (!p.needsTarget) {
             Sound.playSquare()
             gameView.haptics.square()

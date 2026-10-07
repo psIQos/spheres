@@ -10,7 +10,7 @@ data class SavedGame(
     val timerStarted: Boolean,
     /** Dot colors, row by row. */
     val colors: List<IntArray>,
-    /** Moves added with the +3 moves power-up. */
+    /** Moves added with the +5 moves power-up. */
     val bonusMoves: Int = 0,
 ) {
     fun encode(): String = listOf(

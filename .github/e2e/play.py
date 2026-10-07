@@ -469,13 +469,42 @@ def vibration_test():
     time.sleep(1.5)
 
 
-def wallet(nodes):
-    digits = re.sub(r"\D", "", text(nodes, "wallet_value") or "")
+def wallet(nodes, rid="wallet_value"):
+    digits = re.sub(r"\D", "", text(nodes, rid) or "")
     return int(digits) if digits else None
 
 
+def earn_dots(need, rounds=6):
+    """Plays moves-mode games until the account of the current difficulty holds [need] dots."""
+    for _ in range(rounds):
+        nodes = wait_for("menu_wallet")
+        if (wallet(nodes, "menu_wallet") or 0) >= need:
+            break
+        tap(nodes["mode_moves"])
+        time.sleep(2.5)
+        nodes = wait_for("game_view")
+        left = text(nodes, "limit_value")
+        play_moves(int(left) if left and left.isdigit() else 30, "earn")
+        time.sleep(1.5)
+        leave_game()
+    return wallet(wait_for("menu_wallet"), "menu_wallet")
+
+
 def powerup_test():
-    """Power-ups (issue #3): paid with collected dots, each with its exact effect."""
+    """Power-ups (issue #3): paid with collected dots, each with its exact effect.
+    The account is kept per difficulty and endless mode earns nothing."""
+    need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +5 moves
+    hard_before = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
+    normal_before = wallet(choose_difficulty("difficulty_normal"), "menu_wallet")
+    have = earn_dots(need)
+    check(normal_before is not None and have is not None and have > normal_before,
+          f"moves games fill the normal account ({normal_before} -> {have})")
+    hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
+    check(hard_after == hard_before, f"hard account untouched by normal games ({hard_before} -> {hard_after})")
+    choose_difficulty("difficulty_normal")
+    if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
+        return
+
     nodes = wait_for("mode_endless")
     tap(nodes["mode_endless"])
     time.sleep(2.5)
@@ -484,21 +513,13 @@ def powerup_test():
     check("powerup_shrinker" in nodes and "powerup_expander" in nodes, "endless offers shrinker and expander")
     check("powerup_special" not in nodes, "endless has no time stop / extra moves")
 
-    # Earn dots for the test: every cleared dot goes into the account.
-    start = wallet(nodes)
-    need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +3 moves
-    for i in range(120):
-        nodes = dump()
-        if i >= 3 and (wallet(nodes) or 0) >= need:
-            break
-        path = longest_path(read_board(screencap(), pos), limit=7 if SDK >= 29 else 2)
-        drag([pos(r, c) for r, c in path])
-        time.sleep(1.2)
-    nodes = dump()
+    # Endless earns nothing for the account, but still scores.
     have = wallet(nodes)
-    check(start is not None and have is not None and have > start, f"cleared dots fill the account ({start} -> {have})")
-    if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
-        return
+    score = int(text(nodes, "score_value") or 0)
+    one_move()
+    nodes = dump()
+    check(int(text(nodes, "score_value") or 0) > score and wallet(nodes) == have,
+          f"endless scores but earns no dots (score {score} -> {text(nodes, 'score_value')}, account {have} -> {wallet(nodes)})")
 
     # Shrinker: choose, cancel, choose again, use.
     tap(nodes["powerup_shrinker"])
@@ -570,19 +591,19 @@ def powerup_test():
         check(wallet(nodes) == have - 60, f"time stop costs 60 ({have} -> {wallet(nodes)})")
     leave_game()
 
-    # +3 moves.
+    # +5 moves.
     nodes = wait_for("mode_moves")
     tap(nodes["mode_moves"])
     time.sleep(2.5)
     nodes = wait_for("game_view")
-    if check("powerup_special" in nodes, "moves mode offers +3 moves"):
+    if check("powerup_special" in nodes, "moves mode offers +5 moves"):
         have, left = wallet(nodes), text(nodes, "limit_value")
         tap(nodes["powerup_special"])
         time.sleep(1)
         nodes = dump()
-        check(left is not None and text(nodes, "limit_value") == str(int(left) + 3),
-              f"+3 moves ({left} -> {text(nodes, 'limit_value')})")
-        check(wallet(nodes) == have - 60, f"+3 moves costs 60 ({have} -> {wallet(nodes)})")
+        check(left is not None and text(nodes, "limit_value") == str(int(left) + 5),
+              f"+5 moves ({left} -> {text(nodes, 'limit_value')})")
+        check(wallet(nodes) == have - 60, f"+5 moves costs 60 ({have} -> {wallet(nodes)})")
     leave_game()
     nodes = wait_for("menu_wallet")
     check(re.search(r"\d", text(nodes, "menu_wallet") or "") is not None, f"menu shows the account ({text(nodes, 'menu_wallet')})")

@@ -81,10 +81,15 @@ object Prefs {
     fun clearSavedGame(context: Context, mode: GameMode) =
         prefs(context).edit().remove("saved_${mode.name}").apply()
 
-    /** Dots collected over all games, the currency for power-ups. */
-    fun walletDots(context: Context): Int = prefs(context).getInt("wallet", 0)
+    /** Key of the dot account; Normal keeps the key used before accounts per difficulty. */
+    fun walletKey(difficulty: Difficulty): String =
+        if (difficulty == Difficulty.NORMAL) "wallet" else "wallet_${difficulty.name}"
 
-    fun setWalletDots(context: Context, dots: Int) = prefs(context).edit().putInt("wallet", dots).apply()
+    /** Dots collected at [difficulty], the currency for power-ups. */
+    fun walletDots(context: Context, difficulty: Difficulty): Int = prefs(context).getInt(walletKey(difficulty), 0)
+
+    fun setWalletDots(context: Context, difficulty: Difficulty, dots: Int) =
+        prefs(context).edit().putInt(walletKey(difficulty), dots).apply()
 
     fun vibrationEnabled(context: Context): Boolean = prefs(context).getBoolean("vibration", true)
 

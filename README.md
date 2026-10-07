@@ -22,13 +22,15 @@ erst mit der nächsten Berührung weiter.
 ## Power-ups
 
 Jeder abgeräumte Punkt landet auf einem Punktekonto, das über alle Spiele erhalten bleibt
-(wie im Original-Dots). Damit kauft man im Spiel Power-ups über die Leiste unter dem Spielfeld:
+(wie im Original-Dots). Das Konto wird je Schwierigkeit getrennt geführt; im Endlos-Modus werden
+keine Punkte dafür verdient (dort kann man nur ausgeben). Damit kauft man im Spiel Power-ups über die
+Leiste unter dem Spielfeld:
 
 | Power-up       | Kosten | Wirkung                                        | Modi        |
 |----------------|--------|------------------------------------------------|-------------|
 | Schrumpfer     | 30     | einen gewählten Punkt entfernen                | alle        |
 | Zeitstopp      | 60     | Uhr steht 5 Sekunden                           | Zeit        |
-| +3 Züge        | 60     | drei zusätzliche Züge                          | Züge        |
+| +5 Züge        | 60     | fünf zusätzliche Züge                          | Züge        |
 | Expander       | 120    | alle Punkte der angetippten Farbe entfernen    | alle        |
 
 Schrumpfer und Expander werden erst bezahlt, wenn ein Punkt angetippt wurde; erneutes Tippen auf den
