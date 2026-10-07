@@ -34,6 +34,17 @@ class GameActivity : Activity(), GameView.Listener {
     private var gameOver = false
     private var paused = false
 
+    // Power-ups
+    private lateinit var wallet: Wallet
+    private var bonusMoves = 0
+    private var pendingTarget: PowerUp? = null
+    private var frozenUntil = 0L
+    /** Time stop left over when the clock was stopped (pause, leaving the app). */
+    private var frozenLeftMs = 0L
+    private lateinit var powerUpHint: TextView
+    private lateinit var walletValue: TextView
+    private lateinit var powerUpButtons: Map<PowerUp, TextView>
+
     // Timed mode
     private var timerStarted = false
     private var remainingMs = 0L
@@ -43,7 +54,7 @@ class GameActivity : Activity(), GameView.Listener {
     private val tick = object : Runnable {
         override fun run() {
             val now = SystemClock.elapsedRealtime()
-            remainingMs -= now - lastTick
+            remainingMs -= runningSince(now)
             lastTick = now
             if (remainingMs <= 0) {
                 remainingMs = 0
@@ -86,6 +97,19 @@ class GameActivity : Activity(), GameView.Listener {
         findViewById<View>(R.id.play_again).setOnClickListener { restart() }
         findViewById<View>(R.id.to_menu).setOnClickListener { finish() }
 
+        wallet = Wallet(Prefs.walletDots(this))
+        powerUpHint = findViewById(R.id.powerup_hint)
+        walletValue = findViewById(R.id.wallet_value)
+        val special = findViewById<TextView>(R.id.powerup_special)
+        val offered = PowerUp.forMode(mode)
+        powerUpButtons = buildMap {
+            put(PowerUp.SHRINKER, findViewById(R.id.powerup_shrinker))
+            offered.firstOrNull { it == PowerUp.TIME_STOP || it == PowerUp.EXTRA_MOVES }?.let { put(it, special) }
+            put(PowerUp.EXPANDER, findViewById(R.id.powerup_expander))
+        }
+        if (powerUpButtons.values.none { it === special }) special.visibility = View.GONE
+        for ((powerUp, button) in powerUpButtons) button.setOnClickListener { onPowerUp(powerUp) }
+
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
         gameView.haptics.enabled = Prefs.vibrationEnabled(this)
@@ -99,6 +123,8 @@ class GameActivity : Activity(), GameView.Listener {
             moves = saved.moves
             remainingMs = saved.remainingMs
             timerStarted = saved.timerStarted
+            bonusMoves = saved.bonusMoves
+            limit += bonusMoves
             gameView.newGame(difficulty.size, difficulty.colors, restore = saved.colors)
             updateHud()
         } else {
@@ -119,6 +145,10 @@ class GameActivity : Activity(), GameView.Listener {
         setDifficulty(Difficulty.parse(intent.getStringExtra(Difficulty.EXTRA)))
         score = 0
         moves = 0
+        bonusMoves = 0
+        frozenUntil = 0L
+        frozenLeftMs = 0L
+        pendingTarget = null
         gameOver = false
         paused = false
         timerStarted = false
@@ -133,6 +163,7 @@ class GameActivity : Activity(), GameView.Listener {
     private fun pause() {
         if (gameOver) return
         paused = true
+        cancelTarget()
         stopTicking()
         gameView.inputEnabled = false
         pauseOverlay.visibility = View.VISIBLE
@@ -164,7 +195,10 @@ class GameActivity : Activity(), GameView.Listener {
         if (finished || untouched) {
             Prefs.clearSavedGame(this, mode)
         } else {
-            Prefs.saveGame(this, mode, SavedGame(difficulty, score, moves, remainingMs, timerStarted, gameView.colors()))
+            Prefs.saveGame(
+                this, mode,
+                SavedGame(difficulty, score, moves, remainingMs, timerStarted, gameView.colors(), bonusMoves),
+            )
         }
     }
 
@@ -180,6 +214,8 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         score += result.removed.size
         moves++
+        wallet.earn(result.removed.size)
+        Prefs.setWalletDots(this, wallet.dots)
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
         save()
@@ -189,17 +225,100 @@ class GameActivity : Activity(), GameView.Listener {
         }
     }
 
+    /** A power-up button was tapped. */
+    private fun onPowerUp(p: PowerUp) {
+        if (gameOver || paused) return
+        if (pendingTarget == p) {
+            cancelTarget()
+            return
+        }
+        cancelTarget()
+        if (!wallet.canAfford(p)) {
+            flashHint(getString(R.string.powerup_too_expensive, p.cost - wallet.dots))
+            return
+        }
+        when (p) {
+            PowerUp.SHRINKER, PowerUp.EXPANDER -> {
+                // Paid once the player has picked a dot.
+                pendingTarget = p
+                gameView.target = if (p == PowerUp.SHRINKER) GameView.Target.ONE_DOT else GameView.Target.ONE_COLOR
+                powerUpHint.setText(if (p == PowerUp.SHRINKER) R.string.powerup_hint_shrinker else R.string.powerup_hint_expander)
+                powerUpHint.visibility = View.VISIBLE
+            }
+            PowerUp.TIME_STOP -> {
+                if (!ticking) return
+                pay(p)
+                val now = SystemClock.elapsedRealtime()
+                frozenUntil = maxOf(now, frozenUntil) + PowerUp.TIME_STOP_SECONDS * 1000L
+            }
+            PowerUp.EXTRA_MOVES -> {
+                if (moves >= limit) return
+                pay(p)
+                bonusMoves += PowerUp.EXTRA_MOVES_COUNT
+                limit += PowerUp.EXTRA_MOVES_COUNT
+                save()
+            }
+        }
+        updateHud()
+    }
+
+    override fun onTargetUsed(result: MoveResult) {
+        val p = pendingTarget ?: return
+        pendingTarget = null
+        powerUpHint.visibility = View.INVISIBLE
+        pay(p)
+        // Points count, but it is not a move and earns no dots for the account.
+        score += result.removed.size
+        if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
+        updateHud()
+        save()
+    }
+
+    private fun pay(p: PowerUp) {
+        if (!wallet.buy(p)) return
+        Prefs.setWalletDots(this, wallet.dots)
+        if (!p.needsTarget) {
+            Sound.playSquare()
+            gameView.haptics.square()
+        }
+    }
+
+    private fun cancelTarget() {
+        pendingTarget = null
+        gameView.target = GameView.Target.NONE
+        powerUpHint.visibility = View.INVISIBLE
+    }
+
+    private fun flashHint(text: String) {
+        powerUpHint.text = text
+        powerUpHint.visibility = View.VISIBLE
+        handler.postDelayed({ if (pendingTarget == null) powerUpHint.visibility = View.INVISIBLE }, 1500)
+    }
+
+    /** Clock time since the last tick that counts, i.e. outside a time stop. */
+    private fun runningSince(now: Long): Long {
+        val from = maxOf(lastTick, frozenUntil)
+        return if (now > from) now - from else 0
+    }
+
     private fun startTicking() {
         if (ticking || gameOver || paused) return
         ticking = true
         lastTick = SystemClock.elapsedRealtime()
+        if (frozenLeftMs > 0) {
+            frozenUntil = lastTick + frozenLeftMs
+            frozenLeftMs = 0
+        }
         handler.post(tick)
     }
 
     private fun stopTicking() {
         if (!ticking) return
         handler.removeCallbacks(tick)
-        remainingMs -= SystemClock.elapsedRealtime() - lastTick
+        val now = SystemClock.elapsedRealtime()
+        remainingMs -= runningSince(now)
+        frozenLeftMs = maxOf(0, frozenUntil - now)
+        frozenUntil = 0
         ticking = false
     }
 
@@ -216,8 +335,34 @@ class GameActivity : Activity(), GameView.Listener {
             GameMode.MOVES -> limit - moves <= 5
             GameMode.ENDLESS -> false
         }
-        val color = if (low) Palette.dot(0) else getColor(R.color.text_primary)
+        val frozen = mode == GameMode.TIMED && SystemClock.elapsedRealtime() < frozenUntil
+        val color = when {
+            frozen -> Palette.dot(3) // blue while the time stop runs
+            low -> Palette.dot(0)
+            else -> getColor(R.color.text_primary)
+        }
         if (limitValue.currentTextColor != color) limitValue.setTextColor(color)
+        updatePowerUps()
+    }
+
+    private fun updatePowerUps() {
+        setIfChanged(walletValue, getString(R.string.wallet, wallet.dots))
+        for ((p, button) in powerUpButtons) {
+            val name = when (p) {
+                PowerUp.SHRINKER -> getString(R.string.powerup_shrinker)
+                PowerUp.TIME_STOP -> getString(R.string.powerup_time_stop)
+                PowerUp.EXTRA_MOVES -> getString(R.string.powerup_extra_moves, PowerUp.EXTRA_MOVES_COUNT)
+                PowerUp.EXPANDER -> getString(R.string.powerup_expander)
+            }
+            setIfChanged(button, getString(R.string.powerup_label, name, p.cost))
+            val alpha = if (wallet.canAfford(p) && !gameOver) 1f else 0.4f
+            if (button.alpha != alpha) button.alpha = alpha
+            val selected = pendingTarget == p
+            if (button.isSelected != selected) {
+                button.isSelected = selected
+                button.setBackgroundResource(if (selected) R.drawable.btn_selected else R.drawable.btn_grey)
+            }
+        }
     }
 
     private fun setIfChanged(view: TextView, text: String) {
@@ -227,6 +372,7 @@ class GameActivity : Activity(), GameView.Listener {
     private fun endGame() {
         if (gameOver) return
         gameOver = true
+        cancelTarget()
         gameView.inputEnabled = false
         gameView.haptics.gameOver()
         Prefs.clearSavedGame(this, mode)

@@ -24,12 +24,20 @@ class SavedGameTest {
     }
 
     @Test
+    fun keepsBonusMovesAndReadsGamesSavedBeforePowerUps() {
+        val g = game(Difficulty.NORMAL).copy(bonusMoves = 6)
+        assertEquals(6, SavedGame.decode(g.encode())!!.bonusMoves)
+        val old = g.encode().substringBeforeLast(";")
+        assertEquals(0, SavedGame.decode(old)!!.bonusMoves)
+    }
+
+    @Test
     fun rejectsMissingOrBrokenData() {
         assertNull(SavedGame.decode(null))
         assertNull(SavedGame.decode(""))
         assertNull(SavedGame.decode("garbage"))
         val text = game(Difficulty.NORMAL).encode()
-        assertNull("truncated", SavedGame.decode(text.dropLast(3)))
+        assertNull("truncated", SavedGame.decode(text.substringBeforeLast("/")))
         assertNull("unknown version", SavedGame.decode("9" + text.drop(1)))
     }
 

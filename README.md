@@ -19,6 +19,22 @@ Modus gespeichert, auch wenn Android die App beendet, und lässt sich im Menü f
 verlässt und zurückkommt oder ein Spiel aus dem Menü fortsetzt, spielt direkt weiter; die Uhr läuft
 erst mit der nächsten Berührung weiter.
 
+## Power-ups
+
+Jeder abgeräumte Punkt landet auf einem Punktekonto, das über alle Spiele erhalten bleibt
+(wie im Original-Dots). Damit kauft man im Spiel Power-ups über die Leiste unter dem Spielfeld:
+
+| Power-up       | Kosten | Wirkung                                        | Modi        |
+|----------------|--------|------------------------------------------------|-------------|
+| Schrumpfer     | 30     | einen gewählten Punkt entfernen                | alle        |
+| Zeitstopp      | 60     | Uhr steht 5 Sekunden                           | Zeit        |
+| +3 Züge        | 60     | drei zusätzliche Züge                          | Züge        |
+| Expander       | 120    | alle Punkte der angetippten Farbe entfernen    | alle        |
+
+Schrumpfer und Expander werden erst bezahlt, wenn ein Punkt angetippt wurde; erneutes Tippen auf den
+Button bricht ab. Mit Power-ups entfernte Punkte zählen zum Spielstand, aber nicht als Zug und nicht
+für das Punktekonto.
+
 ## Einstellungen
 
 Schwierigkeit, Ton, Vibration und „Alle Rekorde zurücksetzen“ (mit Sicherheitsabfrage).
@@ -79,6 +95,7 @@ Android 8.0 (API 26, minSdk) und Android 15 (API 35, targetSdk) und führt `.git
 - spielt eine Runde auf „Schwer“ (7×7, 6 Farben), prüft „Leicht“ und dass die Rekorde je Schwierigkeit getrennt bleiben,
 - pausiert (Uhr muss stehen), verlässt ein Spiel, beendet die App hart und setzt mit gleichem Brett und Punktestand fort,
 - prüft das Einstellungsmenü und das Zurücksetzen der Rekorde,
+- setzt jedes Power-up ein und prüft Kosten, Punkte, Züge und den angehaltenen Timer,
 - prüft (ab Android 12) im Vibrations-Log des Systems, dass Verbinden vibriert und der Schalter in den Einstellungen das abstellt,
 - startet anschließend `monkey` mit 5000 Zufallseingaben und schlägt bei Absturz oder ANR fehl.
 

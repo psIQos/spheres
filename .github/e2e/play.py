@@ -469,6 +469,115 @@ def vibration_test():
     time.sleep(1.5)
 
 
+def wallet(nodes):
+    digits = re.sub(r"\D", "", text(nodes, "wallet_value") or "")
+    return int(digits) if digits else None
+
+
+def powerup_test():
+    """Power-ups (issue #3): paid with collected dots, each with its exact effect."""
+    nodes = wait_for("mode_endless")
+    tap(nodes["mode_endless"])
+    time.sleep(2.5)
+    nodes = wait_for("game_view")
+    pos = geometry(nodes)
+    check("powerup_shrinker" in nodes and "powerup_expander" in nodes, "endless offers shrinker and expander")
+    check("powerup_special" not in nodes, "endless has no time stop / extra moves")
+
+    # Earn dots for the test: every cleared dot goes into the account.
+    start = wallet(nodes)
+    need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +3 moves
+    for _ in range(120):
+        nodes = dump()
+        if (wallet(nodes) or 0) >= need:
+            break
+        path = longest_path(read_board(screencap(), pos), limit=7 if SDK >= 29 else 2)
+        drag([pos(r, c) for r, c in path])
+        time.sleep(1.2)
+    nodes = dump()
+    have = wallet(nodes)
+    check(start is not None and have is not None and have > start, f"cleared dots fill the account ({start} -> {have})")
+    if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
+        return
+
+    # Shrinker: choose, cancel, choose again, use.
+    tap(nodes["powerup_shrinker"])
+    time.sleep(0.8)
+    nodes = dump()
+    check("powerup_hint" in nodes, f"shrinker asks to tap a dot ({text(nodes, 'powerup_hint')})")
+    tap(nodes["powerup_shrinker"])
+    time.sleep(0.8)
+    nodes = dump()
+    check("powerup_hint" not in nodes and wallet(nodes) == have, "tapping again cancels without paying")
+    score = int(text(nodes, "score_value") or 0)
+    moves = text(nodes, "limit_value")
+    tap(nodes["powerup_shrinker"])
+    time.sleep(0.8)
+    shot("17-shrinker")
+    sh("input tap {} {}".format(*pos(2, 2)))
+    time.sleep(1.5)
+    nodes = dump()
+    check(wallet(nodes) == have - 30, f"shrinker costs 30 ({have} -> {wallet(nodes)})")
+    check(text(nodes, "score_value") == str(score + 1), f"shrinker scores 1 dot ({score} -> {text(nodes, 'score_value')})")
+    check(text(nodes, "limit_value") == moves, "a power-up is not a move")
+    have = wallet(nodes)
+
+    # Expander: all dots of the tapped color.
+    grid = read_board(screencap(), pos)
+    color = grid[0][0]
+    count = sum(row.count(color) for row in grid)
+    score = int(text(nodes, "score_value") or 0)
+    tap(nodes["powerup_expander"])
+    time.sleep(0.8)
+    sh("input tap {} {}".format(*pos(0, 0)))
+    time.sleep(1.5)
+    nodes = dump()
+    check(wallet(nodes) == have - 120, f"expander costs 120 ({have} -> {wallet(nodes)})")
+    check(text(nodes, "score_value") == str(score + count),
+          f"expander clears all {count} dots of the color ({score} -> {text(nodes, 'score_value')})")
+    shot("18-after-expander")
+    leave_game()
+
+    # Time stop: the clock stands still for 5 seconds.
+    nodes = wait_for("mode_timed")
+    tap(nodes["mode_timed"])
+    time.sleep(2.5)
+    one_move()  # the continued game's clock starts with a touch
+    nodes = dump()
+    if check("powerup_special" in nodes, "timed offers time stop"):
+        have = wallet(nodes)
+        tap(nodes["powerup_special"])
+        time.sleep(0.5)
+        nodes = dump()
+        frozen = text(nodes, "limit_value")
+        shot("19-time-stop")
+        time.sleep(3)
+        nodes = dump()
+        check(text(nodes, "limit_value") == frozen, f"time stop freezes the clock ({frozen} -> {text(nodes, 'limit_value')})")
+        check(wallet(nodes) == have - 60, f"time stop costs 60 ({have} -> {wallet(nodes)})")
+        time.sleep(4)
+        later = text(dump(), "limit_value")
+        check(later is not None and frozen is not None and int(later) < int(frozen), f"clock runs again after 5 s ({frozen} -> {later})")
+    leave_game()
+
+    # +3 moves.
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    nodes = wait_for("game_view")
+    if check("powerup_special" in nodes, "moves mode offers +3 moves"):
+        have, left = wallet(nodes), text(nodes, "limit_value")
+        tap(nodes["powerup_special"])
+        time.sleep(1)
+        nodes = dump()
+        check(left is not None and text(nodes, "limit_value") == str(int(left) + 3),
+              f"+3 moves ({left} -> {text(nodes, 'limit_value')})")
+        check(wallet(nodes) == have - 60, f"+3 moves costs 60 ({have} -> {wallet(nodes)})")
+    leave_game()
+    nodes = wait_for("menu_wallet")
+    check(re.search(r"\d", text(nodes, "menu_wallet") or "") is not None, f"menu shows the account ({text(nodes, 'menu_wallet')})")
+
+
 def difficulty_test(normal_best):
     """Hard: 7x7 board with 6 colors and 25 moves, played through. Best scores must be
     kept per difficulty. Easy: 4 colors and 35 moves."""
@@ -651,6 +760,7 @@ def main():
     difficulty_test(normal_best=observed)
     settings_test()
     vibration_test()
+    powerup_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))

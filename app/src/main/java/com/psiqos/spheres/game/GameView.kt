@@ -24,6 +24,8 @@ class GameView @JvmOverloads constructor(
         fun onFirstTouch() {}
         fun onPathChanged(length: Int, isSquare: Boolean) {}
         fun onMove(result: MoveResult)
+        /** A dot was tapped while [GameView.target] was set; the power-up has been applied. */
+        fun onTargetUsed(result: MoveResult) {}
     }
 
     var listener: Listener? = null
@@ -95,6 +97,7 @@ class GameView @JvmOverloads constructor(
         board = Board(rows = size, cols = size, colorCount = colors)
         if (restore != null) board.setColors(restore.toTypedArray())
         tracker = PathTracker(board)
+        target = Target.NONE
         updateGeometry()
         touched = false
         effects.clear()
@@ -135,6 +138,12 @@ class GameView @JvmOverloads constructor(
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!inputEnabled) return false
+        if (target != Target.NONE) {
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                tracker.cellAt(event.x, event.y, PathTracker.START_TOLERANCE)?.let(::useTarget)
+            }
+            return true
+        }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 tracker.begin(event.x, event.y)?.let(::onBegin)
@@ -205,7 +214,35 @@ class GameView @JvmOverloads constructor(
         startAnimating()
     }
 
+    /** What a tap on a dot does instead of starting a path (for power-ups). */
+    enum class Target { NONE, ONE_DOT, ONE_COLOR }
+
+    var target = Target.NONE
+        set(value) {
+            field = value
+            if (value != Target.NONE) {
+                board.cancel()
+                startAnimating()
+            }
+            invalidate()
+        }
+
+    private fun useTarget(cell: Cell) {
+        val result = if (target == Target.ONE_DOT) board.removeDot(cell) else board.removeColor(board[cell])
+        target = Target.NONE
+        Sound.playSquare()
+        haptics.square()
+        animate(result)
+        listener?.onTargetUsed(result)
+    }
+
     private fun onCommitted(result: MoveResult) {
+        animate(result)
+        listener?.onMove(result)
+    }
+
+    /** Pops the removed dots and lets the rest fall into place. */
+    private fun animate(result: MoveResult) {
         val now = SystemClock.uptimeMillis()
         for (cell in result.removed) {
             effects += Effect(centerX(cell.col), centerY(cell.row) - offset[cell.row][cell.col] * cellSize,
@@ -232,7 +269,6 @@ class GameView @JvmOverloads constructor(
                 }
             }
         }
-        listener?.onMove(result)
         startAnimating()
     }
 
@@ -332,9 +368,17 @@ class GameView @JvmOverloads constructor(
             if (y < -cellSize) continue
             dotPaint.color = Palette.dot(board[r, c])
             canvas.drawCircle(centerX(c), y, dotRadius, dotPaint)
+            if (target != Target.NONE) {
+                // Selectable for a power-up: a softly pulsing ring.
+                val t = (now % 900) / 900f
+                framePaint.color = Palette.withAlpha(Palette.dot(board[r, c]), (160 * (1 - t)).toInt())
+                framePaint.strokeWidth = dotRadius * 0.25f
+                canvas.drawCircle(centerX(c), y, dotRadius * (1.25f + 0.35f * t), framePaint)
+                framePaint.strokeWidth = 10 * density
+            }
         }
 
-        if (animating || path.isNotEmpty()) postInvalidateOnAnimation() else lastFrame = 0L
+        if (animating || path.isNotEmpty() || target != Target.NONE) postInvalidateOnAnimation() else lastFrame = 0L
     }
 
     private companion object {

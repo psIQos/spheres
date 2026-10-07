@@ -51,6 +51,7 @@ class MainActivity : Activity() {
         val difficulty = Prefs.difficulty(this)
         findViewById<TextView>(R.id.difficulty_summary).text =
             getString(R.string.difficulty, getString(difficulty.label))
+        findViewById<TextView>(R.id.menu_wallet).text = getString(R.string.wallet, Prefs.walletDots(this))
         findViewById<TextView>(R.id.mode_timed).text = getString(R.string.mode_timed, difficulty.seconds)
         findViewById<TextView>(R.id.mode_moves).text = getString(R.string.mode_moves, difficulty.moves)
         for ((mode, _, bestId) in modes) {

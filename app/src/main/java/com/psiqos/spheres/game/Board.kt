@@ -130,6 +130,25 @@ class Board(
         return MoveResult(color, removed, square, drops, shuffled)
     }
 
+    /** Shrinker power-up: removes a single dot. */
+    fun removeDot(cell: Cell): MoveResult {
+        require(contains(cell))
+        _path.clear()
+        val color = this[cell]
+        val drops = collapse(setOf(cell), avoidColor = -1)
+        return MoveResult(color, setOf(cell), isSquare = false, drops = drops, shuffled = ensurePlayable())
+    }
+
+    /** Expander power-up: removes every dot of [color], like a square, without drawing one. */
+    fun removeColor(color: Int): MoveResult {
+        _path.clear()
+        val removed = buildSet {
+            for (r in 0 until rows) for (c in 0 until cols) if (grid[r][c] == color) add(Cell(r, c))
+        }
+        val drops = collapse(removed, avoidColor = color)
+        return MoveResult(color, removed, isSquare = true, drops = drops, shuffled = ensurePlayable())
+    }
+
     private fun collapse(removed: Set<Cell>, avoidColor: Int): Array<IntArray> {
         val drops = Array(rows) { IntArray(cols) }
         for (c in 0 until cols) {

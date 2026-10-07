@@ -39,4 +39,13 @@
     <string name="reset_records_done">Rekorde gelöscht</string>
     <string name="delete">Löschen</string>
     <string name="cancel">Abbrechen</string>
+    <string name="powerup_shrinker">Schrumpfer</string>
+    <string name="powerup_time_stop">Zeitstopp</string>
+    <string name="powerup_extra_moves">+%1$d Züge</string>
+    <string name="powerup_expander">Expander</string>
+    <string name="powerup_label">%1$s\n● %2$d</string>
+    <string name="powerup_hint_shrinker">Tippe einen Punkt an, um ihn zu entfernen</string>
+    <string name="powerup_hint_expander">Tippe einen Punkt an, um alle seiner Farbe zu entfernen</string>
+    <string name="powerup_too_expensive">Noch %1$d Punkte nötig</string>
+    <string name="wallet">● %1$d Punkte gesammelt</string>
 </resources>

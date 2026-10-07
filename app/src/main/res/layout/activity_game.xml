@@ -77,6 +77,46 @@
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/powerup_hint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingBottom="8dp"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:visibility="invisible" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
+
+            <TextView
+                android:id="@+id/powerup_shrinker"
+                style="@style/PowerUpButton" />
+
+            <TextView
+                android:id="@+id/powerup_special"
+                style="@style/PowerUpButton" />
+
+            <TextView
+                android:id="@+id/powerup_expander"
+                style="@style/PowerUpButton" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/wallet_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="12dp"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
     </LinearLayout>
 
     <LinearLayout

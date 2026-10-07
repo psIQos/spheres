@@ -10,6 +10,8 @@ data class SavedGame(
     val timerStarted: Boolean,
     /** Dot colors, row by row. */
     val colors: List<IntArray>,
+    /** Moves added with the +3 moves power-up. */
+    val bonusMoves: Int = 0,
 ) {
     fun encode(): String = listOf(
         VERSION,
@@ -19,6 +21,7 @@ data class SavedGame(
         remainingMs,
         if (timerStarted) 1 else 0,
         colors.joinToString("/") { row -> row.joinToString("") },
+        bonusMoves,
     ).joinToString(";")
 
     override fun equals(other: Any?): Boolean =
@@ -32,12 +35,14 @@ data class SavedGame(
         /** Null for anything that is not a complete, consistent saved game. */
         fun decode(text: String?): SavedGame? = runCatching {
             val p = text!!.split(";")
-            require(p.size == 7 && p[0] == VERSION)
+            // 7 fields: saved before power-ups existed.
+            require((p.size == 7 || p.size == 8) && p[0] == VERSION)
             val difficulty = Difficulty.valueOf(p[1])
             val colors = p[6].split("/").map { row -> IntArray(row.length) { row[it].digitToInt() } }
             require(colors.size == difficulty.size && colors.all { it.size == difficulty.size })
             require(colors.all { row -> row.all { it in 0 until difficulty.colors } })
-            SavedGame(difficulty, p[2].toInt(), p[3].toInt(), p[4].toLong(), p[5] == "1", colors)
+            val bonus = if (p.size == 8) p[7].toInt() else 0
+            SavedGame(difficulty, p[2].toInt(), p[3].toInt(), p[4].toLong(), p[5] == "1", colors, bonus)
         }.getOrNull()
     }
 }

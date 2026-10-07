@@ -81,6 +81,11 @@ object Prefs {
     fun clearSavedGame(context: Context, mode: GameMode) =
         prefs(context).edit().remove("saved_${mode.name}").apply()
 
+    /** Dots collected over all games, the currency for power-ups. */
+    fun walletDots(context: Context): Int = prefs(context).getInt("wallet", 0)
+
+    fun setWalletDots(context: Context, dots: Int) = prefs(context).edit().putInt("wallet", dots).apply()
+
     fun vibrationEnabled(context: Context): Boolean = prefs(context).getBoolean("vibration", true)
 
     fun setVibrationEnabled(context: Context, enabled: Boolean) =

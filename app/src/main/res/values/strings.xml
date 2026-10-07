@@ -41,4 +41,13 @@
     <string name="reset_records_done">Records deleted</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
+    <string name="powerup_shrinker">Shrinker</string>
+    <string name="powerup_time_stop">Time stop</string>
+    <string name="powerup_extra_moves">+%1$d moves</string>
+    <string name="powerup_expander">Expander</string>
+    <string name="powerup_label">%1$s\n● %2$d</string>
+    <string name="powerup_hint_shrinker">Tap a dot to remove it</string>
+    <string name="powerup_hint_expander">Tap a dot to remove all dots of its color</string>
+    <string name="powerup_too_expensive">%1$d more dots needed</string>
+    <string name="wallet">● %1$d dots collected</string>
 </resources>

@@ -129,6 +129,42 @@ class BoardTest {
     }
 
     @Test
+    fun shrinkerRemovesOneDot() {
+        val b = board(
+            "1230",
+            "2301",
+            "0012",
+            "3123",
+        )
+        val result = b.removeDot(Cell(2, 1))
+        assertEquals(setOf(Cell(2, 1)), result.removed)
+        assertFalse(result.isSquare)
+        // column 1 above (2,1) falls by one: "2" from row 0 to row 1, "3" from row 1 to row 2
+        assertEquals(2, b[1, 1])
+        assertEquals(3, b[2, 1])
+        assertEquals(1, b[3, 1])
+        assertEquals(1, result.drops[2][1])
+    }
+
+    @Test
+    fun expanderRemovesAColorLikeASquare() {
+        val b = board(
+            "0123",
+            "1230",
+            "2301",
+            "3012",
+        )
+        val result = b.removeColor(0)
+        assertEquals(4, result.removed.size)
+        assertTrue(result.isSquare)
+        if (!result.shuffled) {
+            for (r in 0 until 4) for (c in 0 until 4) {
+                if (r < result.drops[r][c]) assertTrue("refill avoids the color", b[r, c] != 0)
+            }
+        }
+    }
+
+    @Test
     fun cannotReuseSegment() {
         val b = board(
             "0012",
