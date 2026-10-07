@@ -7,12 +7,30 @@ Mit dem Nutzer wird **Deutsch** gesprochen; Code, Kommentare und Commit-Messages
 
 - **Jede Aufgabe gehört zu einem GitHub-Issue.** Anforderungen und Entscheidungen werden am Issue
   festgehalten (Kommentar mit Checkliste), nach der Umsetzung Punkt für Punkt mit Nachweis abgehakt.
-- **Ein Branch pro Issue**, z. B. `issue-12-endless-survival`, Pull Request gegen den Standard-Branch.
-  Mehrere Sessions arbeiten parallel – deshalb nie auf fremden Branches committen.
-- Commits referenzieren das Issue (`refs #12`). Issues werden **nicht** automatisch geschlossen:
-  Der Nutzer bestätigt erst auf dem eigenen Gerät, dann wird geschlossen.
 - Offene Design-Fragen nicht still entscheiden: Startwerte wählen, als Annahme kennzeichnen und
   im Issue zur Entscheidung stellen.
+
+## Branches, Sessions und Pull Requests
+
+Es arbeiten mehrere Claude-Sessions parallel, **eine Session pro Issue**.
+
+- **`main`** ist der Standard-Branch und enthält nur gemergte, auf dem Gerät geprüfte Stände.
+  Nie direkt auf `main` committen.
+- Jede Session arbeitet auf **ihrem eigenen Branch** (der Branch, den die Session vorgibt, sonst
+  `issue-<nr>-<kurzname>`, z. B. `issue-5-endless-survival`), abgezweigt vom aktuellen `main`.
+  Nie auf fremden Branches committen.
+- Commits referenzieren das Issue (`refs #5`).
+- Ist die Umsetzung fertig und sind beide Workflows auf dem Branch grün: **Pull Request gegen `main`**,
+  Beschreibung mit Bezug aufs Issue (`refs #5`, nicht `fixes`) und der abgehakten Checkliste.
+- Für Tests auf dem Handy kann von einem Branch eine Vorab-APK veröffentlicht werden (siehe Release).
+  Versionsnummer dann nur auf dem eigenen Branch erhöhen; bei Konflikten in `app/build.gradle.kts`
+  beim Mergen die höhere Version nehmen.
+- **Der Nutzer** testet auf dem Gerät, mergt den Pull Request und schließt das Issue. Issues werden
+  nie automatisch geschlossen.
+- Hat sich `main` inzwischen geändert: `main` in den eigenen Branch mergen (kein Rebase/Force-Push
+  auf geteilten Branches), Konflikte lösen, Workflows erneut abwarten.
+- Mehrere Branches ändern oft dieselben Dateien (`GameActivity.kt`, `play.py`, `strings.xml`):
+  Änderungen klein und auf das Issue begrenzt halten, nichts nebenbei umbauen.
 
 ## Bauen und Testen
 
