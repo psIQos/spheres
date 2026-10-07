@@ -494,8 +494,17 @@ def earn_dots(need, rounds=6):
 def top_up(key, dots):
     """Sets the stored dot account [key] (it must exist already) and restarts the app.
     Needs the debuggable e2e build for run-as."""
+    prefs = "shared_prefs/spheres.xml"
     sh(f"am force-stop {PKG}")
-    sh(f"run-as {PKG} sed -i 's/name=\"{key}\" value=\"[0-9]*\"/name=\"{key}\" value=\"{dots}\"/' shared_prefs/spheres.xml")
+    for _ in range(20):  # the process can take a moment to go away
+        if not sh(f"pidof {PKG}"):
+            break
+        time.sleep(0.5)
+    before = sh(f"run-as {PKG} cat {prefs} 2>&1")
+    out = sh(f"run-as {PKG} sed -i 's/name=\"{key}\" value=\"[0-9]*\"/name=\"{key}\" value=\"{dots}\"/' {prefs} 2>&1")
+    after = sh(f"run-as {PKG} cat {prefs} 2>&1")
+    check(f'name="{key}" value="{dots}"' in after,
+          f"run-as sets the account: {out!r}\nbefore: {before}\nafter: {after}")
     launch()
     time.sleep(2)
 
