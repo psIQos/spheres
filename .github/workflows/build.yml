@@ -6,8 +6,11 @@ on:
   push:
     branches: [main]
     tags: ["v*"]
+    # Path filters are not applied to tag pushes, so releases are always built.
+    paths-ignore: ["**.md"]
   pull_request:
     branches: [main]
+    paths-ignore: ["**.md"]
   workflow_dispatch:
     inputs:
       release:
@@ -15,10 +18,11 @@ on:
         type: boolean
         default: false
 
-# A new push to a pull request replaces the run of the previous one.
+# A new push to a pull request cancels its outdated run. Runs on main, tags and
+# manual runs (releases) get a group of their own and are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 permissions:
   contents: write

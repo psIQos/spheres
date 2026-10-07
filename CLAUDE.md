@@ -47,7 +47,8 @@ Gebaut und getestet wird über GitHub Actions:
 | Emulator test | `.github/workflows/emulator.yml` | `.github/e2e/play.py` auf API 26 und 35 |
 
 Beide laufen bei Pull Requests gegen `main` (auf dem Merge-Ergebnis mit `main`), bei Pushes auf `main`
-und manuell (`workflow_dispatch`). Ein neuer Push in einen Pull Request bricht dessen alten Lauf ab.
+und manuell (`workflow_dispatch`). Ein neuer Push in einen Pull Request bricht dessen alten Lauf ab;
+reine Doku-Änderungen (`*.md`) lösen keinen Lauf aus.
 Der Emulator-Test nutzt den Build-Typ `e2e`: die Release-APK (R8), aber debuggable, damit `play.py`
 per `run-as` Daten setzen kann (z. B. das Punktekonto auffüllen).
 
