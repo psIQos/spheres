@@ -60,11 +60,11 @@ class PowerUpTest {
         assertEquals(PowerUp.TIME_STOP.cost, PowerUp.EXTRA_MOVES.cost)
     }
 
-    /** Prices of the original Dots (issue #3); the time stop's is an assumption. */
+    /** Prices of the original Dots shop, a fifth of a five-pack each (issue #3). */
     @Test
     fun pricesFollowTheOriginal() {
         assertEquals(100, PowerUp.SHRINKER.cost)
         assertEquals(1000, PowerUp.EXPANDER.cost)
-        assertEquals(300, PowerUp.TIME_STOP.cost)
+        assertEquals(200, PowerUp.TIME_STOP.cost)
     }
 }

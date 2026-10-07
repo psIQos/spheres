@@ -520,7 +520,7 @@ def top_up(key, dots):
 def powerup_test():
     """Power-ups (issue #3): paid with collected dots, each with its exact effect.
     The account is kept per difficulty and endless mode earns nothing."""
-    need = 100 + 1000 + 300 + 300  # shrinker, expander, time stop, +5 moves
+    need = 100 + 1000 + 200 + 200  # shrinker, expander, time stop, +5 moves
     hard_before = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     normal_before = wallet(choose_difficulty("difficulty_normal"), "menu_wallet")
     have = earn_dots(need, rounds=1)  # one game shows earning; the prices take dozens
@@ -639,7 +639,7 @@ def powerup_test():
             lost = int(before) - int(after)
             check(elapsed - 7 <= lost <= elapsed - 3,
                   f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
-        check(wallet(nodes) == have - 300, f"time stop costs 300 ({have} -> {wallet(nodes)})")
+        check(wallet(nodes) == have - 200, f"time stop costs 200 ({have} -> {wallet(nodes)})")
     leave_game()
 
     # +5 moves.
@@ -654,7 +654,7 @@ def powerup_test():
         nodes = dump()
         check(left is not None and text(nodes, "limit_value") == str(int(left) + 5),
               f"+5 moves ({left} -> {text(nodes, 'limit_value')})")
-        check(wallet(nodes) == have - 300, f"+5 moves costs 300 ({have} -> {wallet(nodes)})")
+        check(wallet(nodes) == have - 200, f"+5 moves costs 200 ({have} -> {wallet(nodes)})")
     leave_game()
     nodes = wait_for("menu_wallet")
     check(re.search(r"\d", text(nodes, "menu_wallet") or "") is not None, f"menu shows the account ({text(nodes, 'menu_wallet')})")

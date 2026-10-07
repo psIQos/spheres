@@ -4,16 +4,17 @@ package com.psiqos.spheres
  * Special moves, as in Dots. They are paid with collected dots: every dot a player
  * clears goes into a dot account, kept across games.
  *
- * Prices follow the original Dots (shrinkers 5 for 500, expanders 5 for 1,000 each).
- * The original price of the time stop was not found; 300 is an assumption (issue #3).
+ * Prices follow the original Dots shop, which sold packs of five: shrinkers 5 for 500,
+ * time stops 5 for 1,000, expanders 5 for 5,000 (issue #3). +5 moves stands in for the
+ * time stop in moves mode and costs the same.
  */
 enum class PowerUp(val cost: Int) {
     /** Removes one dot of the player's choice. */
     SHRINKER(100),
     /** Timed mode: stops the clock for [TIME_STOP_SECONDS]. */
-    TIME_STOP(300),
+    TIME_STOP(200),
     /** Moves mode: [EXTRA_MOVES_COUNT] more moves. */
-    EXTRA_MOVES(300),
+    EXTRA_MOVES(200),
     /** Removes all dots of the color the player taps. */
     EXPANDER(1000);
 
