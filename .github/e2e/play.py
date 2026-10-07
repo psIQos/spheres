@@ -494,19 +494,27 @@ def earn_dots(need, rounds=6):
 def top_up(key, dots):
     """Sets the stored dot account [key] (it must exist already) and restarts the app.
     Needs the debuggable e2e build for run-as."""
-    prefs = "shared_prefs/spheres.xml"
+    sed = f's/name="{key}" value="[0-9]*"/name="{key}" value="{dots}"/'
     sh(f"am force-stop {PKG}")
     for _ in range(20):  # the process can take a moment to go away
-        if not sh(f"pidof {PKG}"):
+        pid = sh(f"pidof {PKG}")
+        if not pid:
             break
         time.sleep(0.5)
-    before = sh(f"run-as {PKG} cat {prefs} 2>&1")
-    out = sh(f"run-as {PKG} sed -i 's/name=\"{key}\" value=\"[0-9]*\"/name=\"{key}\" value=\"{dots}\"/' {prefs} 2>&1")
-    after = sh(f"run-as {PKG} cat {prefs} 2>&1")
+    if pid:  # still running: it would write its cached account back
+        sh(f"run-as {PKG} kill -9 {pid}")
+    # Android prefers a leftover backup file (.bak) over the file itself, so edit both.
+    files = sh(f"run-as {PKG} ls shared_prefs 2>&1")
+    out = ""
+    for name in files.split():
+        if name.startswith("spheres.xml"):
+            out += sh(f"run-as {PKG} sed -i '{sed}' shared_prefs/{name} 2>&1")
+    after = sh(f"run-as {PKG} cat shared_prefs/spheres.xml 2>&1")
     check(f'name="{key}" value="{dots}"' in after,
-          f"run-as sets the account: {out!r}\nbefore: {before}\nafter: {after}")
+          f"run-as sets the account: {out!r}, files {files.split()}, pid {pid!r}\nafter: {after}")
     launch()
     time.sleep(2)
+    return f"files {files.split()}, pid before editing {pid!r}"
 
 
 def powerup_test():
@@ -521,10 +529,16 @@ def powerup_test():
     hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     check(hard_after == hard_before, f"hard account untouched by normal games ({hard_before} -> {hard_after})")
     choose_difficulty("difficulty_normal")
+    info = ""
     if have is not None and have < need:
-        top_up("wallet", need)
-        have = wallet(wait_for("menu_wallet"), "menu_wallet")
-    if not check(have is not None and have >= need, f"enough dots for the test ({have})"):
+        info = top_up("wallet", need)
+        end = time.time() + 15
+        while time.time() < end:  # a failed dump returns the last screen, from before
+            have = wallet(wait_for("menu_wallet"), "menu_wallet")
+            if have is not None and have >= need:
+                break
+            time.sleep(1)
+    if not check(have is not None and have >= need, f"enough dots for the test ({have}; {info})"):
         return
 
     nodes = wait_for("mode_endless")
