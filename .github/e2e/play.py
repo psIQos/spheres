@@ -611,21 +611,18 @@ def powerup_test():
         t0 = time.time()
         tap(nodes["powerup_special"])
         l, t, r, b = bounds(clock)
-        blue = 0
-        for _ in range(6):  # the tap can take a moment to arrive on a busy emulator
-            img = screencap()
-            blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
-                       if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
-            if blue > 20:
-                break
-            time.sleep(0.5)
+        blue, bar, img = 0, False, None
+        # Both last as long as the stop. Look for them side by side: on a busy emulator the
+        # tap, a screenshot and a dump can each take seconds.
+        while time.time() < t0 + 8 and not (blue > 20 and bar):
+            if blue <= 20:
+                img = screencap()
+                blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
+                           if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
+            if not bar:
+                bar = "time_stop_bar" in dump()
         shot("19-time-stop", img)
-        # A dump can be slow or stale on a busy emulator: look again while the stop lasts.
-        while True:
-            nodes = dump()
-            if "time_stop_bar" in nodes or time.time() > t0 + 5:
-                break
-        check("time_stop_bar" in nodes, f"time stop shows the running-out bar (looked until {time.time() - t0:.1f} s)")
+        check(bar, f"time stop shows the running-out bar (looked until {time.time() - t0:.1f} s)")
         if SDK >= 31:
             check(our_vibrations() - vibrations, "time stop vibrates")
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
