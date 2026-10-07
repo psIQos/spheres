@@ -269,7 +269,8 @@ def play_moves(total, label, shots=False):
     nodes = dump()
     pos = geometry(nodes)
     expected = 0
-    observed = 0
+    # A continued game does not start at 0.
+    observed = int(text(nodes, "score_value") or 0)
     moves_left = total
     squares = 0
     took_drag_shot = False
@@ -760,16 +761,21 @@ def main():
     check(now is not None and frozen is not None and int(now) < int(frozen), f"clock runs again after resume ({frozen} -> {now})")
 
     # Leaving the app and coming back continues directly; the clock waits for a touch.
-    sh("input keyevent 3")  # Home
-    time.sleep(1)
-    away = text(dump(), "limit_value")  # None: launcher in front
+    now = text(dump(), "limit_value")
+    for _ in range(3):  # a busy emulator sometimes drops the key press
+        sh("input keyevent 3")  # Home
+        time.sleep(1.5)
+        away = text(dump(), "limit_value")  # None: launcher in front
+        if away is None:
+            break
+    check(away is None, "Home leaves the app")
     time.sleep(3)
     launch()
     time.sleep(2)
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
     check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
-    check(back_at is not None and now is not None and int(back_at) >= int(now) - 2,
+    check(back_at is not None and now is not None and int(back_at) >= int(now) - 1,
           f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
     one_move()
     time.sleep(2)
