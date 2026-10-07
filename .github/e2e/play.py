@@ -574,11 +574,16 @@ def powerup_test():
         before = text(nodes, "limit_value")
         t0 = time.time()
         tap(nodes["powerup_special"])
-        img = screencap()
-        shot("19-time-stop", img)
         l, t, r, b = bounds(clock)
-        blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
-                   if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
+        blue = 0
+        for _ in range(6):  # the tap can take a moment to arrive on a busy emulator
+            img = screencap()
+            blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
+                       if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
+            if blue > 20:
+                break
+            time.sleep(0.5)
+        shot("19-time-stop", img)
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
         while time.time() < t0 + 10:
             time.sleep(0.5)
