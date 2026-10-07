@@ -687,8 +687,22 @@ def launch():
 
 
 def crash_log():
-    log = adb("logcat", "-d", "-b", "crash")
-    return "\n".join(l for l in log.splitlines() if PKG in l or "FATAL" in l)
+    """Crashes of the app only. A crash report starts with "FATAL EXCEPTION" and names the
+    process; crashes of other processes (e.g. the uiautomator tool) are ignored."""
+    log = adb("logcat", "-d", "-b", "crash").splitlines()
+    blocks, current = [], []
+    for line in log:
+        if "FATAL EXCEPTION" in line and current:
+            blocks.append(current)
+            current = []
+        current.append(line)
+    if current:
+        blocks.append(current)
+    ours = [b for b in blocks if any(f"Process: {PKG}" in l for l in b)]
+    others = [b[0] for b in blocks if b not in ours and any("FATAL EXCEPTION" in l for l in b)]
+    if others:
+        print("ignored crashes of other processes:\n" + "\n".join(others), flush=True)
+    return "\n".join(l for b in ours for l in b[:15])
 
 
 def main():
