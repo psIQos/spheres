@@ -769,13 +769,15 @@ def main():
         if away is None:
             break
     check(away is None, "Home leaves the app")
-    time.sleep(3)
+    # Long enough away that a clock running in the background could not hide in the
+    # 1-2 s the emulator needs to read the UI and switch apps.
+    time.sleep(8)
     launch()
     time.sleep(2)
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
     check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
-    check(back_at is not None and now is not None and int(back_at) >= int(now) - 1,
+    check(back_at is not None and now is not None and int(back_at) >= int(now) - 3,
           f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
     one_move()
     time.sleep(2)
