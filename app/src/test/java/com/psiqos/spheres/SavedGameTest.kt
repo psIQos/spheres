@@ -24,11 +24,16 @@ class SavedGameTest {
     }
 
     @Test
-    fun keepsBonusMovesAndReadsGamesSavedBeforePowerUps() {
-        val g = game(Difficulty.NORMAL).copy(bonusMoves = 6)
-        assertEquals(6, SavedGame.decode(g.encode())!!.bonusMoves)
-        val old = g.encode().substringBeforeLast(";")
-        assertEquals(0, SavedGame.decode(old)!!.bonusMoves)
+    fun keepsPowerUpStateAndReadsGamesSavedBeforePowerUps() {
+        val g = game(Difficulty.NORMAL).copy(bonusMoves = 5, timeStopLeftMs = 3200)
+        val back = SavedGame.decode(g.encode())!!
+        assertEquals(5, back.bonusMoves)
+        assertEquals(3200, back.timeStopLeftMs)
+        // the format of 1.0.0-beta.5 and earlier: 7 fields
+        val old = g.encode().split(";").take(7).joinToString(";")
+        val oldBack = SavedGame.decode(old)!!
+        assertEquals(0, oldBack.bonusMoves)
+        assertEquals(0, oldBack.timeStopLeftMs)
     }
 
     @Test

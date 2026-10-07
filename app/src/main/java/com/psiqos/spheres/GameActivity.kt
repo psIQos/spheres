@@ -124,6 +124,7 @@ class GameActivity : Activity(), GameView.Listener {
             timerStarted = saved.timerStarted
             bonusMoves = saved.bonusMoves
             limit += bonusMoves
+            frozenLeftMs = saved.timeStopLeftMs
             gameView.newGame(difficulty.size, difficulty.colors, restore = saved.colors)
             updateHud()
         } else {
@@ -197,7 +198,10 @@ class GameActivity : Activity(), GameView.Listener {
         } else {
             Prefs.saveGame(
                 this, mode,
-                SavedGame(difficulty, score, moves, remainingMs, timerStarted, gameView.colors(), bonusMoves),
+                SavedGame(
+                    difficulty, score, moves, remainingMs, timerStarted, gameView.colors(), bonusMoves,
+                    timeStopLeftMs = if (ticking) maxOf(0, frozenUntil - SystemClock.elapsedRealtime()) else frozenLeftMs,
+                ),
             )
         }
     }
