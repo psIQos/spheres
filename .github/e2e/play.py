@@ -818,8 +818,16 @@ def main():
         away = text(dump(), "limit_value")  # None: launcher in front
         if away is None:
             break
-        now = away  # still in the app: the clock ran on while the key press was lost
     check(away is None, "Home leaves the app")
+    # The clock the app saved when it was left: on a busy emulator the Home key can take
+    # seconds to arrive, so the last reading before pressing it is not exact.
+    saved_s = None
+    for _ in range(5):
+        m = re.search(r'name="saved_TIMED">\d+;\w+;\d+;\d+;(\d+);', sh(f"run-as {PKG} cat shared_prefs/spheres.xml"))
+        if m:
+            saved_s = (int(m.group(1)) + 999) // 1000  # shown rounded up, like the HUD
+            break
+        time.sleep(1)
     # Long enough away that a clock running in the background could not hide in the
     # 1-2 s the emulator needs to read the UI and switch apps.
     time.sleep(8)
@@ -828,8 +836,8 @@ def main():
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
     check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
-    check(back_at is not None and now is not None and int(back_at) >= int(now) - 3,
-          f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
+    check(back_at is not None and saved_s is not None and int(back_at) >= saved_s - 1,
+          f"clock stood still while away (saved {saved_s} -> {back_at}; last seen {now}, launcher showed {away})")
     one_move()
     time.sleep(2)
     later = text(dump(), "limit_value")
