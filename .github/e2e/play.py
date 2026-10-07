@@ -818,6 +818,7 @@ def main():
         away = text(dump(), "limit_value")  # None: launcher in front
         if away is None:
             break
+        now = away  # still in the app: the clock ran on while the key press was lost
     check(away is None, "Home leaves the app")
     # Long enough away that a clock running in the background could not hide in the
     # 1-2 s the emulator needs to read the UI and switch apps.
