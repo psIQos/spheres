@@ -871,9 +871,13 @@ def main():
     check(now is not None and frozen is not None and int(now) < int(frozen), f"clock runs again after resume ({frozen} -> {now})")
 
     # Leaving the app and coming back continues directly; the clock waits for a touch.
+    # The clock is read during the dump and runs on until Home arrives; dumps can take
+    # several seconds on a slow emulator, so that time is allowed on top.
+    read_at = time.time()
     now = text(dump(), "limit_value")
     for _ in range(3):  # a busy emulator sometimes drops the key press
         sh("input keyevent 3")  # Home
+        running = time.time() - read_at
         time.sleep(1.5)
         away = text(dump(), "limit_value")  # None: launcher in front
         if away is None:
@@ -887,8 +891,8 @@ def main():
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
     check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
-    check(back_at is not None and now is not None and int(back_at) >= int(now) - 3,
-          f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
+    check(back_at is not None and now is not None and int(back_at) >= int(now) - 3 - running,
+          f"clock stood still while away ({now} -> {back_at}, {running:.1f} s until Home, launcher showed {away})")
     one_move()
     time.sleep(2)
     later = text(dump(), "limit_value")
