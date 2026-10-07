@@ -18,7 +18,7 @@ permissions:
 jobs:
   emulator:
     runs-on: ubuntu-latest
-    timeout-minutes: 35 # a normal run takes ~25 min; a hang should not burn an hour
+    timeout-minutes: 40 # a normal run takes 24-27 min; a hang should not burn an hour
     strategy:
       fail-fast: false
       matrix:
@@ -52,44 +52,6 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      # Booting an emulator from scratch takes minutes. The freshly booted AVD is cached as
-      # a snapshot (pattern from the android-emulator-runner docs); test runs start from it
-      # without saving back, so every run begins with the same clean device. The cache is
-      # saved right after creating the snapshot: a post-job save would also store the disk
-      # of the test run (installed app, scores) next to a snapshot that no longer matches it.
-      - name: Restore AVD snapshot
-        uses: actions/cache/restore@v4
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{ matrix.api-level }}-${{ matrix.target }}-x86_64-pixel_6-v2
-
-      - name: Create AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{ matrix.api-level }}
-          target: ${{ matrix.target }}
-          arch: x86_64
-          profile: pixel_6
-          cores: 4
-          ram-size: 4096M
-          force-avd-creation: false
-          disable-animations: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: echo "AVD snapshot created"
-
-      - name: Save AVD snapshot
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: ${{ steps.avd-cache.outputs.cache-primary-key }}
-
       - name: Play on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -99,9 +61,8 @@ jobs:
           profile: pixel_6
           cores: 4
           ram-size: 4096M
-          force-avd-creation: false
           disable-animations: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: python .github/e2e/play.py app/build/outputs/apk/release/app-release.apk e2e-out
 
       - name: Publish screenshots
