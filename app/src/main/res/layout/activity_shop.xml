@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background"
+    android:fillViewport="true"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="40dp"
+        android:paddingTop="24dp"
+        android:paddingEnd="40dp"
+        android:paddingBottom="24dp">
+
+        <TextView
+            android:id="@+id/shop_back"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:background="?android:attr/selectableItemBackground"
+            android:gravity="center_vertical"
+            android:paddingEnd="16dp"
+            android:text="@string/back"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="sans-serif-light"
+            android:gravity="center"
+            android:text="@string/shop"
+            android:textColor="@color/text_primary"
+            android:textSize="40sp" />
+
+        <TextView
+            android:id="@+id/shop_wallet"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="28dp"
+            android:gravity="center"
+            android:textColor="@color/text_secondary"
+            android:textSize="15sp" />
+
+        <TextView
+            style="@style/ShopName"
+            android:text="@string/powerup_shrinker" />
+
+        <TextView
+            android:id="@+id/shop_shrinker_note"
+            style="@style/ShopNote" />
+
+        <TextView
+            android:id="@+id/shop_shrinker_count"
+            style="@style/ShopNote"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/shop_shrinker_buy"
+            style="@style/ModeButton"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/btn_red" />
+
+        <TextView
+            style="@style/ShopName"
+            android:text="@string/powerup_time_stop" />
+
+        <TextView
+            android:id="@+id/shop_time_stop_note"
+            style="@style/ShopNote" />
+
+        <TextView
+            android:id="@+id/shop_time_stop_count"
+            style="@style/ShopNote"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/shop_time_stop_buy"
+            style="@style/ModeButton"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/btn_purple" />
+
+        <TextView
+            style="@style/ShopName"
+            android:text="@string/powerup_expander" />
+
+        <TextView
+            android:id="@+id/shop_expander_note"
+            style="@style/ShopNote" />
+
+        <TextView
+            android:id="@+id/shop_expander_count"
+            style="@style/ShopNote"
+            android:textColor="@color/text_primary" />
+
+        <TextView
+            android:id="@+id/shop_expander_buy"
+            style="@style/ModeButton"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="28dp"
+            android:background="@drawable/btn_green" />
+    </LinearLayout>
+</ScrollView>

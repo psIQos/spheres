@@ -85,7 +85,9 @@ Die APK ist mit `app/spheres.keystore` signiert (bewusst im Repo), damit Updates
 - `game/Sound.kt`, `game/Tones.kt`, `game/Haptics.kt` – synthetisierte Töne (SoundPool), Vibration
 - `GameActivity.kt` – HUD, Timer, Pause/Fortsetzen, Speichern, Power-ups
 - `GameMode.kt` – Modi, `Difficulty`, `Prefs` (Rekorde/Konto je Schwierigkeit, Einstellungen)
-- `SavedGame.kt`, `PowerUp.kt` – gespeicherter Spielstand, Power-ups und Punktekonto
+- `SavedGame.kt`, `PowerUp.kt` – gespeicherter Spielstand, Power-ups (Packs, Bestand) und Punktekonto
+- `ShopActivity.kt` – Shop: Power-ups in Packs kaufen, mit Bestätigung
+- `game/DoubleTap.kt` – Doppeltipp-Erkennung (Schrumpfer-Abkürzung), unit-getestet
 - `MainActivity.kt`, `SettingsActivity.kt` – Menü und Einstellungen
 
 Gespeicherte Daten bleiben über Updates erhalten: Schlüssel in `Prefs` nicht umbenennen, Formate

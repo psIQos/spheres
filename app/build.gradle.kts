@@ -11,8 +11,14 @@ android {
         applicationId = "com.psiqos.spheres"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.0.0-beta.8"
+        versionCode = 9
+        versionName = "1.0.0-beta.9"
+        // Longest gap between the taps of a double tap, if longer than the system's.
+        buildConfigField("long", "DOUBLE_TAP_MS", "0L")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {
@@ -41,6 +47,8 @@ android {
         create("e2e") {
             initWith(getByName("release"))
             isDebuggable = true
+            // adb starts a process per tap, too slow for a real double tap.
+            buildConfigField("long", "DOUBLE_TAP_MS", "3000L")
         }
     }
 

@@ -1,24 +1,21 @@
 package com.psiqos.spheres
 
 /**
- * Special moves, as in Dots. They are paid with collected dots: every dot a player
- * clears goes into a dot account, kept across games.
+ * Special moves, as in Dots. They are items: bought in packs in the shop with collected
+ * dots (every dot a player clears goes into a dot account), and used up in a game.
  *
- * Prices follow the original Dots shop, which sold packs of five: shrinkers 5 for 500,
- * time stops 5 for 1,000, expanders 5 for 5,000 (issue #3). +5 moves stands in for the
- * time stop in moves mode and costs the same.
+ * Unit prices follow the original Dots shop (shrinkers 5 for 500, time stops 5 for 1,000,
+ * expanders 5 for 5,000). The expensive expander comes in packs of three (issue #3).
  */
-enum class PowerUp(val cost: Int) {
+enum class PowerUp(val packSize: Int, val packPrice: Int) {
     /** Removes one dot of the player's choice. */
-    SHRINKER(100),
-    /** Timed mode: stops the clock for [TIME_STOP_SECONDS]. */
-    TIME_STOP(200),
-    /** Moves mode: [EXTRA_MOVES_COUNT] more moves. */
-    EXTRA_MOVES(200),
+    SHRINKER(5, 500),
+    /** Timed mode: stops the clock for [TIME_STOP_SECONDS]. Moves mode: [EXTRA_MOVES_COUNT] more moves. */
+    TIME_STOP(5, 1000),
     /** Removes all dots of the color the player taps. */
-    EXPANDER(1000);
+    EXPANDER(3, 3000);
 
-    /** Whether the player picks a dot after buying it. */
+    /** Whether the player picks a dot when using it. */
     val needsTarget: Boolean get() = this == SHRINKER || this == EXPANDER
 
     companion object {
@@ -28,31 +25,44 @@ enum class PowerUp(val cost: Int) {
         /** Endless mode has no limit, so dots cleared there would be free money. */
         fun earnsDots(mode: GameMode): Boolean = mode != GameMode.ENDLESS
 
-        /** Power-ups offered in [mode], in the order shown below the board. */
+        /** Power-ups usable in [mode], in the order shown below the board. */
         fun forMode(mode: GameMode): List<PowerUp> = when (mode) {
-            GameMode.TIMED -> listOf(SHRINKER, TIME_STOP, EXPANDER)
-            GameMode.MOVES -> listOf(SHRINKER, EXTRA_MOVES, EXPANDER)
+            GameMode.TIMED, GameMode.MOVES -> listOf(SHRINKER, TIME_STOP, EXPANDER)
             GameMode.ENDLESS -> listOf(SHRINKER, EXPANDER)
         }
     }
 }
 
-/** The dot account of one difficulty: pure bookkeeping, persisted through [Prefs]. */
-class Wallet(dots: Int) {
+/**
+ * The dot account and the power-ups owned at one difficulty: pure bookkeeping,
+ * persisted through [Prefs].
+ */
+class Wallet(dots: Int, items: Map<PowerUp, Int> = emptyMap()) {
     var dots = dots
         private set
+    private val items = PowerUp.entries.associateWith { maxOf(0, items[it] ?: 0) }.toMutableMap()
 
-    fun canAfford(p: PowerUp) = dots >= p.cost
+    fun count(p: PowerUp): Int = items.getValue(p)
+
+    fun canBuyPack(p: PowerUp) = dots >= p.packPrice
 
     fun earn(count: Int) {
         require(count >= 0)
         dots += count
     }
 
-    /** Pays for [p]; false if there are not enough dots. */
-    fun buy(p: PowerUp): Boolean {
-        if (!canAfford(p)) return false
-        dots -= p.cost
+    /** Buys a pack of [p]; false if there are not enough dots. */
+    fun buyPack(p: PowerUp): Boolean {
+        if (!canBuyPack(p)) return false
+        dots -= p.packPrice
+        items[p] = count(p) + p.packSize
+        return true
+    }
+
+    /** Uses up one [p]; false if there is none left. */
+    fun use(p: PowerUp): Boolean {
+        if (count(p) <= 0) return false
+        items[p] = count(p) - 1
         return true
     }
 }

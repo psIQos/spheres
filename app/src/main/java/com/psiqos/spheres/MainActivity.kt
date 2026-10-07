@@ -37,6 +37,9 @@ class MainActivity : Activity() {
             // The line below a button can say "tap to resume", so it starts the game too.
             findViewById<View>(bestId).setOnClickListener(start)
         }
+        findViewById<View>(R.id.shop_button).setOnClickListener {
+            startActivity(Intent(this, ShopActivity::class.java).putExtra(Difficulty.EXTRA, Prefs.difficulty(this).name))
+        }
         findViewById<View>(R.id.settings_button).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
