@@ -20,8 +20,12 @@ Es arbeiten mehrere Claude-Sessions parallel, **eine Session pro Issue**.
   `issue-<nr>-<kurzname>`, z. B. `issue-5-endless-survival`), abgezweigt vom aktuellen `main`.
   Nie auf fremden Branches committen.
 - Commits referenzieren das Issue (`refs #5`).
-- Ist die Umsetzung fertig und sind beide Workflows auf dem Branch grün: **Pull Request gegen `main`**,
-  Beschreibung mit Bezug aufs Issue (`refs #5`, nicht `fixes`) und der abgehakten Checkliste.
+- **Jede Änderung kommt per Pull Request nach `main`**, auch kleine Korrekturen und Änderungen an
+  Regeln oder Workflows. Den Pull Request gegen `main` gleich nach dem ersten Push öffnen (als Entwurf,
+  solange nicht fertig): Die Workflows laufen nur für Pull Requests und `main`, nicht für einzelne Branches.
+  Beschreibung mit Bezug aufs Issue (`refs #5`, nicht `fixes`) und der Checkliste.
+- Ist die Umsetzung fertig, die Checkliste abgehakt und sind beide Workflows im Pull Request grün:
+  Pull Request als bereit markieren.
 - Für Tests auf dem Handy kann von einem Branch eine Vorab-APK veröffentlicht werden (siehe Release).
   Versionsnummer dann nur auf dem eigenen Branch erhöhen; bei Konflikten in `app/build.gradle.kts`
   beim Mergen die höhere Version nehmen.
@@ -42,6 +46,11 @@ Gebaut und getestet wird über GitHub Actions:
 | Build APK | `.github/workflows/build.yml` | Unit-Tests, signierte Release-APK (R8), optional Release |
 | Emulator test | `.github/workflows/emulator.yml` | `.github/e2e/play.py` auf API 26 und 35 |
 
+Beide laufen bei Pull Requests gegen `main` (auf dem Merge-Ergebnis mit `main`), bei Pushes auf `main`
+und manuell (`workflow_dispatch`). Ein neuer Push in einen Pull Request bricht dessen alten Lauf ab.
+Der Emulator-Test nutzt den Build-Typ `e2e`: die Release-APK (R8), aber debuggable, damit `play.py`
+per `run-as` Daten setzen kann (z. B. das Punktekonto auffüllen).
+
 - **Unit-Tests lokal** ohne SDK: Spiel-Logik liegt bewusst in Android-freien Klassen
   (`Board`, `PathTracker`, `Tones`, `SavedGame`, `PowerUp`, `Difficulty`). Neue Logik ebenso trennen
   und in `app/src/test` testen.
@@ -53,14 +62,15 @@ Gebaut und getestet wird über GitHub Actions:
     (Notice „API xx: n/m checks passed“ + Fehler als Annotation)
   - Screenshots: Annotation „screenshots api-xx“ listet Git-Blob-SHAs →
     `gh api repos/psIQos/spheres/git/blobs/<sha> --jq .content | base64 -d > shot.png`
-- Vor dem Pushen: Unit-Tests grün; nach dem Pushen: beide Workflows auf dem Commit abwarten.
+- Vor dem Pushen: Unit-Tests grün; nach dem Pushen: beide Workflows im Pull Request abwarten.
   Ein rotes Ergebnis erst analysieren (Test- oder App-Fehler?), nie Tests abschwächen, um grün zu werden.
 
 ## Release
 
 1. `versionName` (Schema `1.0.0-beta.N`) und `versionCode` in `app/build.gradle.kts` erhöhen.
-2. Beide Workflows grün abwarten.
-3. *Build APK* manuell mit `release: true` starten (`workflow_dispatch`): legt Tag `v<versionName>` an und
+2. Beide Workflows im Pull Request grün abwarten.
+3. *Build APK* manuell mit `release: true` starten (`workflow_dispatch`), auf dem Branch des Pull Requests
+   (Vorab-APK zum Testen) oder auf `main`: legt Tag `v<versionName>` an und
    veröffentlicht `spheres-<version>.apk`; Versionen mit Bindestrich werden Pre-release.
    (Tags direkt pushen ist aus Cloud-Sessions nicht erlaubt.)
 

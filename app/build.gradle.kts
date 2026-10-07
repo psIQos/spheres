@@ -11,8 +11,8 @@ android {
         applicationId = "com.psiqos.spheres"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.0-beta.7"
+        versionCode = 8
+        versionName = "1.0.0-beta.8"
     }
 
     signingConfigs {
@@ -35,6 +35,12 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.getByName("shared")
+        }
+        // The release build, but debuggable: the emulator test uses run-as to top up
+        // the dot account instead of playing dozens of games for expensive power-ups.
+        create("e2e") {
+            initWith(getByName("release"))
+            isDebuggable = true
         }
     }
 

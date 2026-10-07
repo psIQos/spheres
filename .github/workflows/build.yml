@@ -1,16 +1,24 @@
 name: Build APK
 
+# Work happens in pull requests against main: they are checked on the merge result.
+# Branches without a pull request are not built (a manual run is still possible).
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
+    branches: [main]
   workflow_dispatch:
     inputs:
       release:
         description: "Create tag v<versionName> on this commit and publish a release"
         type: boolean
         default: false
+
+# A new push to a pull request replaces the run of the previous one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write

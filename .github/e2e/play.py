@@ -491,19 +491,31 @@ def earn_dots(need, rounds=6):
     return wallet(wait_for("menu_wallet"), "menu_wallet")
 
 
+def top_up(key, dots):
+    """Sets the stored dot account [key] (it must exist already) and restarts the app.
+    Needs the debuggable e2e build for run-as."""
+    sh(f"am force-stop {PKG}")
+    sh(f"run-as {PKG} sed -i 's/name=\"{key}\" value=\"[0-9]*\"/name=\"{key}\" value=\"{dots}\"/' shared_prefs/spheres.xml")
+    launch()
+    time.sleep(2)
+
+
 def powerup_test():
     """Power-ups (issue #3): paid with collected dots, each with its exact effect.
     The account is kept per difficulty and endless mode earns nothing."""
-    need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +5 moves
+    need = 100 + 1000 + 300 + 300  # shrinker, expander, time stop, +5 moves
     hard_before = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     normal_before = wallet(choose_difficulty("difficulty_normal"), "menu_wallet")
-    have = earn_dots(need)
+    have = earn_dots(need, rounds=1)  # one game shows earning; the prices take dozens
     check(normal_before is not None and have is not None and have > normal_before,
           f"moves games fill the normal account ({normal_before} -> {have})")
     hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     check(hard_after == hard_before, f"hard account untouched by normal games ({hard_before} -> {hard_after})")
     choose_difficulty("difficulty_normal")
-    if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
+    if have is not None and have < need:
+        top_up("wallet", need)
+        have = wallet(wait_for("menu_wallet"), "menu_wallet")
+    if not check(have is not None and have >= need, f"enough dots for the test ({have})"):
         return
 
     nodes = wait_for("mode_endless")
@@ -539,7 +551,7 @@ def powerup_test():
     sh("input tap {} {}".format(*pos(2, 2)))
     time.sleep(1.5)
     nodes = dump()
-    check(wallet(nodes) == have - 30, f"shrinker costs 30 ({have} -> {wallet(nodes)})")
+    check(wallet(nodes) == have - 100, f"shrinker costs 100 ({have} -> {wallet(nodes)})")
     check(text(nodes, "score_value") == str(score + 1), f"shrinker scores 1 dot ({score} -> {text(nodes, 'score_value')})")
     check(text(nodes, "limit_value") == moves, "a power-up is not a move")
     have = wallet(nodes)
@@ -554,7 +566,7 @@ def powerup_test():
     sh("input tap {} {}".format(*pos(0, 0)))
     time.sleep(1.5)
     nodes = dump()
-    check(wallet(nodes) == have - 120, f"expander costs 120 ({have} -> {wallet(nodes)})")
+    check(wallet(nodes) == have - 1000, f"expander costs 1000 ({have} -> {wallet(nodes)})")
     check(text(nodes, "score_value") == str(score + count),
           f"expander clears all {count} dots of the color ({score} -> {text(nodes, 'score_value')})")
     shot("18-after-expander")
@@ -600,7 +612,7 @@ def powerup_test():
             lost = int(before) - int(after)
             check(elapsed - 7 <= lost <= elapsed - 3,
                   f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
-        check(wallet(nodes) == have - 60, f"time stop costs 60 ({have} -> {wallet(nodes)})")
+        check(wallet(nodes) == have - 300, f"time stop costs 300 ({have} -> {wallet(nodes)})")
     leave_game()
 
     # +5 moves.
@@ -615,7 +627,7 @@ def powerup_test():
         nodes = dump()
         check(left is not None and text(nodes, "limit_value") == str(int(left) + 5),
               f"+5 moves ({left} -> {text(nodes, 'limit_value')})")
-        check(wallet(nodes) == have - 60, f"+5 moves costs 60 ({have} -> {wallet(nodes)})")
+        check(wallet(nodes) == have - 300, f"+5 moves costs 300 ({have} -> {wallet(nodes)})")
     leave_game()
     nodes = wait_for("menu_wallet")
     check(re.search(r"\d", text(nodes, "menu_wallet") or "") is not None, f"menu shows the account ({text(nodes, 'menu_wallet')})")

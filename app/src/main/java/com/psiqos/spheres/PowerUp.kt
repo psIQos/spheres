@@ -3,16 +3,19 @@ package com.psiqos.spheres
 /**
  * Special moves, as in Dots. They are paid with collected dots: every dot a player
  * clears goes into a dot account, kept across games.
+ *
+ * Prices follow the original Dots (shrinkers 5 for 500, expanders 5 for 1,000 each).
+ * The original price of the time stop was not found; 300 is an assumption (issue #3).
  */
 enum class PowerUp(val cost: Int) {
     /** Removes one dot of the player's choice. */
-    SHRINKER(30),
+    SHRINKER(100),
     /** Timed mode: stops the clock for [TIME_STOP_SECONDS]. */
-    TIME_STOP(60),
+    TIME_STOP(300),
     /** Moves mode: [EXTRA_MOVES_COUNT] more moves. */
-    EXTRA_MOVES(60),
+    EXTRA_MOVES(300),
     /** Removes all dots of the color the player taps. */
-    EXPANDER(120);
+    EXPANDER(1000);
 
     /** Whether the player picks a dot after buying it. */
     val needsTarget: Boolean get() = this == SHRINKER || this == EXPANDER

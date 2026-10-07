@@ -1,9 +1,17 @@
 name: Emulator test
 
+# Like Build APK: pull requests against main, main itself, or a manual run.
 on:
   push:
-    branches: ["**"]
+    branches: [main]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
+
+# A new push to a pull request replaces the run of the previous one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: write # publish_shots.py stores screenshots as git blobs
@@ -36,8 +44,9 @@ jobs:
 
       - run: pip install pillow
 
-      - name: Build release APK
-        run: ./gradlew --no-daemon assembleRelease
+      # The release build made debuggable, so the test can top up the dot account.
+      - name: Build e2e APK
+        run: ./gradlew --no-daemon assembleE2e
 
       - name: Enable KVM
         run: |
@@ -56,7 +65,7 @@ jobs:
           ram-size: 4096M
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: python .github/e2e/play.py app/build/outputs/apk/release/app-release.apk e2e-out
+          script: python .github/e2e/play.py app/build/outputs/apk/e2e/app-e2e.apk e2e-out
 
       - name: Publish screenshots
         if: always()

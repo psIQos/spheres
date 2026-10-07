@@ -9,14 +9,16 @@ class PowerUpTest {
 
     @Test
     fun walletPaysOnlyWhatItHas() {
-        val w = Wallet(50)
+        val shrinker = PowerUp.SHRINKER.cost
+        val expander = PowerUp.EXPANDER.cost
+        val w = Wallet(shrinker + 20)
         assertTrue(w.canAfford(PowerUp.SHRINKER))
         assertFalse(w.canAfford(PowerUp.EXPANDER))
         assertFalse(w.buy(PowerUp.EXPANDER))
-        assertEquals(50, w.dots)
+        assertEquals(shrinker + 20, w.dots)
         assertTrue(w.buy(PowerUp.SHRINKER))
         assertEquals(20, w.dots)
-        w.earn(100)
+        w.earn(expander - 20)
         assertTrue(w.buy(PowerUp.EXPANDER))
         assertEquals(0, w.dots)
     }
@@ -56,5 +58,13 @@ class PowerUpTest {
         assertTrue(PowerUp.SHRINKER.cost < PowerUp.TIME_STOP.cost)
         assertTrue(PowerUp.TIME_STOP.cost < PowerUp.EXPANDER.cost)
         assertEquals(PowerUp.TIME_STOP.cost, PowerUp.EXTRA_MOVES.cost)
+    }
+
+    /** Prices of the original Dots (issue #3); the time stop's is an assumption. */
+    @Test
+    fun pricesFollowTheOriginal() {
+        assertEquals(100, PowerUp.SHRINKER.cost)
+        assertEquals(1000, PowerUp.EXPANDER.cost)
+        assertEquals(300, PowerUp.TIME_STOP.cost)
     }
 }
