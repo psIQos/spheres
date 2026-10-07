@@ -606,8 +606,12 @@ def powerup_test():
                 break
             time.sleep(0.5)
         shot("19-time-stop", img)
-        nodes = dump()
-        check("time_stop_bar" in nodes, "time stop shows the running-out bar")
+        # A dump can be slow or stale on a busy emulator: look again while the stop lasts.
+        while True:
+            nodes = dump()
+            if "time_stop_bar" in nodes or time.time() > t0 + 5:
+                break
+        check("time_stop_bar" in nodes, f"time stop shows the running-out bar (looked until {time.time() - t0:.1f} s)")
         if SDK >= 31:
             check(our_vibrations() - vibrations, "time stop vibrates")
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
