@@ -2,7 +2,7 @@ package com.psiqos.spheres
 
 /**
  * Special moves, as in Dots. They are paid with collected dots: every dot a player
- * clears goes into a dot account, kept across games.
+ * clears in a completed game goes into a dot account, kept across games.
  */
 enum class PowerUp(val cost: Int) {
     /** Removes one dot of the player's choice. */
@@ -50,5 +50,27 @@ class Wallet(dots: Int) {
         if (!canAfford(p)) return false
         dots -= p.cost
         return true
+    }
+}
+
+/**
+ * Dots collected in the running game. They reach the account only once the game is
+ * completed (time or moves used up); a game that is abandoned earns nothing.
+ */
+class GameEarnings(dots: Int = 0) {
+    var dots = dots
+        private set
+
+    fun collect(count: Int) {
+        require(count >= 0)
+        dots += count
+    }
+
+    /** The game is completed: moves the dots to [wallet] and returns how many; only once. */
+    fun payOut(wallet: Wallet): Int {
+        val paid = dots
+        wallet.earn(paid)
+        dots = 0
+        return paid
     }
 }

@@ -37,6 +37,18 @@ class SavedGameTest {
     }
 
     @Test
+    fun keepsDotsNotYetCreditedAndReadsOlderGamesAsAlreadyCredited() {
+        val g = game(Difficulty.NORMAL).copy(bonusMoves = 5, timeStopLeftMs = 3200, earnedDots = 87)
+        assertEquals(87, SavedGame.decode(g.encode())!!.earnedDots)
+        // earlier format with 9 fields: dots were credited right away, so none are pending
+        val old = g.encode().split(";").take(9).joinToString(";")
+        val back = SavedGame.decode(old)!!
+        assertEquals(0, back.earnedDots)
+        assertEquals(5, back.bonusMoves)
+        assertNull("negative dots", SavedGame.decode(g.copy(earnedDots = -1).encode()))
+    }
+
+    @Test
     fun rejectsMissingOrBrokenData() {
         assertNull(SavedGame.decode(null))
         assertNull(SavedGame.decode(""))

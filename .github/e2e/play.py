@@ -491,6 +491,34 @@ def earn_dots(need, rounds=6):
     return wallet(wait_for("menu_wallet"), "menu_wallet")
 
 
+def completed_games_test():
+    """Dots reach the account only for completed games (issue #20): leaving a game
+    in the middle credits nothing, finishing it later credits its whole score."""
+    before = wallet(wait_for("menu_wallet"), "menu_wallet")
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    one_move()
+    nodes = dump()
+    left = text(nodes, "limit_value")
+    check(int(text(nodes, "score_value") or 0) > 0 and wallet(nodes) == before,
+          f"a move scores but credits nothing yet (score {text(nodes, 'score_value')}, account {before} -> {wallet(nodes)})")
+    leave_game()
+    after_leaving = wallet(wait_for("menu_wallet"), "menu_wallet")
+    check(after_leaving == before, f"leaving an unfinished game credits nothing ({before} -> {after_leaving})")
+
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    wait_for("game_view")
+    final = play_moves(int(left) if left and left.isdigit() else 30, "complete")
+    time.sleep(1.5)
+    leave_game()
+    after = wallet(wait_for("menu_wallet"), "menu_wallet")
+    check(before is not None and after == before + final,
+          f"finishing the game credits its score ({before} + {final} -> {after})")
+
+
 def powerup_test():
     """Power-ups (issue #3): paid with collected dots, each with its exact effect.
     The account is kept per difficulty and endless mode earns nothing."""
@@ -503,6 +531,8 @@ def powerup_test():
     hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     check(hard_after == hard_before, f"hard account untouched by normal games ({hard_before} -> {hard_after})")
     choose_difficulty("difficulty_normal")
+    completed_games_test()
+    have = wallet(wait_for("menu_wallet"), "menu_wallet")
     if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
         return
 
