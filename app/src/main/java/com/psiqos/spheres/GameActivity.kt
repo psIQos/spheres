@@ -1,12 +1,14 @@
 package com.psiqos.spheres
 
 import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.View
 import android.widget.TextView
+import com.psiqos.spheres.game.Cell
 import com.psiqos.spheres.game.GameView
 import com.psiqos.spheres.game.MoveResult
 import com.psiqos.spheres.game.Palette
@@ -107,14 +109,16 @@ class GameActivity : Activity(), GameView.Listener {
         timeStopBar = findViewById(R.id.time_stop_bar)
         walletValue = findViewById(R.id.wallet_value)
         val special = findViewById<TextView>(R.id.powerup_special)
-        val offered = PowerUp.forMode(mode)
         powerUpButtons = buildMap {
             put(PowerUp.SHRINKER, findViewById(R.id.powerup_shrinker))
-            offered.firstOrNull { it == PowerUp.TIME_STOP || it == PowerUp.EXTRA_MOVES }?.let { put(it, special) }
+            if (PowerUp.TIME_STOP in PowerUp.forMode(mode)) put(PowerUp.TIME_STOP, special)
             put(PowerUp.EXPANDER, findViewById(R.id.powerup_expander))
         }
         if (powerUpButtons.values.none { it === special }) special.visibility = View.GONE
-        for ((powerUp, button) in powerUpButtons) button.setOnClickListener { onPowerUp(powerUp) }
+        for ((powerUp, button) in powerUpButtons) {
+            button.setCompoundDrawablesRelativeWithIntrinsicBounds(0, powerUp.icon, 0, 0)
+            button.setOnClickListener { onPowerUp(powerUp) }
+        }
 
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
@@ -147,7 +151,7 @@ class GameActivity : Activity(), GameView.Listener {
     private fun setDifficulty(d: Difficulty) {
         difficulty = d
         limit = mode.limit(d)
-        wallet = Wallet(Prefs.walletDots(this, d))
+        wallet = Prefs.wallet(this, d)
         findViewById<TextView>(R.id.difficulty_label).setText(d.label)
     }
 
@@ -235,7 +239,7 @@ class GameActivity : Activity(), GameView.Listener {
         moves++
         if (PowerUp.earnsDots(mode)) {
             wallet.earn(result.removed.size)
-            Prefs.setWalletDots(this, difficulty, wallet.dots)
+            Prefs.saveWallet(this, difficulty, wallet)
         }
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
@@ -246,7 +250,7 @@ class GameActivity : Activity(), GameView.Listener {
         }
     }
 
-    /** A power-up button was tapped. */
+    /** A power-up button was tapped: use one, or get more in the shop if none is left. */
     private fun onPowerUp(p: PowerUp) {
         if (gameOver || paused) return
         if (pendingTarget == p) {
@@ -254,21 +258,21 @@ class GameActivity : Activity(), GameView.Listener {
             return
         }
         cancelTarget()
-        if (!wallet.canAfford(p)) {
-            flashHint(getString(R.string.powerup_too_expensive, p.cost - wallet.dots))
+        if (wallet.count(p) <= 0) {
+            openShop()
             return
         }
-        when (p) {
-            PowerUp.SHRINKER, PowerUp.EXPANDER -> {
-                // Paid once the player has picked a dot.
+        when {
+            p.needsTarget -> {
+                // Used up once the player has picked a dot.
                 pendingTarget = p
                 gameView.target = if (p == PowerUp.SHRINKER) GameView.Target.ONE_DOT else GameView.Target.ONE_COLOR
                 powerUpHint.setText(if (p == PowerUp.SHRINKER) R.string.powerup_hint_shrinker else R.string.powerup_hint_expander)
                 powerUpHint.visibility = View.VISIBLE
             }
-            PowerUp.TIME_STOP -> {
+            mode == GameMode.TIMED -> {
                 if (!ticking) return
-                pay(p)
+                use(p)
                 val now = SystemClock.elapsedRealtime()
                 frozenUntil = maxOf(now, frozenUntil) + PowerUp.TIME_STOP_SECONDS * 1000L
                 timeStopTotalMs = frozenUntil - now
@@ -278,22 +282,36 @@ class GameActivity : Activity(), GameView.Listener {
                 Sound.playFreeze()
                 gameView.haptics.freeze()
             }
-            PowerUp.EXTRA_MOVES -> {
+            mode == GameMode.MOVES -> {
+                // In moves mode the time stop gives extra moves, as in the original.
                 if (moves >= limit) return
-                pay(p)
+                use(p)
                 bonusMoves += PowerUp.EXTRA_MOVES_COUNT
                 limit += PowerUp.EXTRA_MOVES_COUNT
+                Sound.playSquare()
+                gameView.haptics.square()
                 save()
             }
         }
         updateHud()
     }
 
+    /** Shrinker shortcut: a double tap removes that dot, if there is a shrinker left. */
+    override fun onDoubleTap(cell: Cell) {
+        if (gameOver || paused || pendingTarget != null) return
+        if (wallet.count(PowerUp.SHRINKER) <= 0) {
+            flashHint(getString(R.string.powerup_none_shrinker))
+            return
+        }
+        pendingTarget = PowerUp.SHRINKER
+        gameView.applyTarget(cell, GameView.Target.ONE_DOT)
+    }
+
     override fun onTargetUsed(result: MoveResult) {
         val p = pendingTarget ?: return
         pendingTarget = null
         powerUpHint.visibility = View.INVISIBLE
-        pay(p)
+        use(p)
         // Points count, but it is not a move and earns no dots for the account.
         score += result.removed.size
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
@@ -301,13 +319,13 @@ class GameActivity : Activity(), GameView.Listener {
         save()
     }
 
-    private fun pay(p: PowerUp) {
-        if (!wallet.buy(p)) return
-        Prefs.setWalletDots(this, difficulty, wallet.dots)
-        if (p == PowerUp.EXTRA_MOVES) {
-            Sound.playSquare()
-            gameView.haptics.square()
-        }
+    private fun use(p: PowerUp) {
+        if (wallet.use(p)) Prefs.saveWallet(this, difficulty, wallet)
+    }
+
+    /** The game waits meanwhile, as after the Home button: it goes on with the next touch. */
+    private fun openShop() {
+        startActivity(Intent(this, ShopActivity::class.java).putExtra(Difficulty.EXTRA, difficulty.name))
     }
 
     private fun cancelTarget() {
@@ -392,12 +410,21 @@ class GameActivity : Activity(), GameView.Listener {
         for ((p, button) in powerUpButtons) {
             val name = when (p) {
                 PowerUp.SHRINKER -> getString(R.string.powerup_shrinker)
-                PowerUp.TIME_STOP -> getString(R.string.powerup_time_stop)
-                PowerUp.EXTRA_MOVES -> getString(R.string.powerup_extra_moves, PowerUp.EXTRA_MOVES_COUNT)
+                PowerUp.TIME_STOP ->
+                    if (mode == GameMode.MOVES) getString(R.string.powerup_extra_moves, PowerUp.EXTRA_MOVES_COUNT)
+                    else getString(R.string.powerup_time_stop)
                 PowerUp.EXPANDER -> getString(R.string.powerup_expander)
             }
-            setIfChanged(button, getString(R.string.powerup_label, name, p.cost))
-            val alpha = if (wallet.canAfford(p) && !gameOver) 1f else 0.4f
+            val count = wallet.count(p)
+            val stock = if (count > 0) getString(R.string.powerup_count, count) else getString(R.string.powerup_buy)
+            // The icon says which power-up it is; in moves mode the time stop gives extra moves.
+            setIfChanged(button,
+                if (p == PowerUp.TIME_STOP && mode == GameMode.MOVES)
+                    getString(R.string.powerup_extra_moves_label, PowerUp.EXTRA_MOVES_COUNT, stock)
+                else stock)
+            val description = "$name $stock"
+            if (button.contentDescription != description) button.contentDescription = description
+            val alpha = if (gameOver) 0.4f else 1f
             if (button.alpha != alpha) button.alpha = alpha
             val selected = pendingTarget == p
             if (button.isSelected != selected) {
@@ -431,6 +458,13 @@ class GameActivity : Activity(), GameView.Listener {
         overlay.animate().alpha(1f).setDuration(250).start()
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Back from the shop (or another app): the account and the power-ups may have changed.
+        wallet = Prefs.wallet(this, difficulty)
+        updateHud()
+    }
+
     override fun onPause() {
         super.onPause()
         // Home button, a call, ...: stop the clock and save. Coming back continues the
@@ -446,3 +480,11 @@ class GameActivity : Activity(), GameView.Listener {
         super.onDestroy()
     }
 }
+
+/** Icon of a power-up, after the original Dots. */
+private val PowerUp.icon: Int
+    get() = when (this) {
+        PowerUp.SHRINKER -> R.drawable.ic_shrinker
+        PowerUp.TIME_STOP -> R.drawable.ic_time_stop
+        PowerUp.EXPANDER -> R.drawable.ic_expander
+    }

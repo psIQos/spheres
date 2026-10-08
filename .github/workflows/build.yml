@@ -1,12 +1,16 @@
 name: Build APK
 
+# Work happens in pull requests against main: they are checked on the merge result.
+# Branches without a pull request are not built (a manual run is still possible).
 on:
   push:
-    branches: ["**"]
+    branches: [main]
     tags: ["v*"]
     # Path filters are not applied to tag pushes, so releases are always built.
     paths-ignore: ["**.md"]
-  # No pull_request trigger: every PR branch is already built on push.
+  pull_request:
+    branches: [main]
+    paths-ignore: ["**.md"]
   workflow_dispatch:
     inputs:
       release:
@@ -14,10 +18,10 @@ on:
         type: boolean
         default: false
 
-# A new push to a branch cancels the outdated run on it. Runs on main, tags and
+# A new push to a pull request cancels its outdated run. Runs on main, tags and
 # manual runs (releases) get a group of their own and are never cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/') && github.ref != 'refs/heads/main') && github.ref || github.run_id }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:

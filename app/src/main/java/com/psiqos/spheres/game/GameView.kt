@@ -10,6 +10,8 @@ import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import com.psiqos.spheres.BuildConfig
 import kotlin.math.max
 import kotlin.math.min
 
@@ -26,6 +28,8 @@ class GameView @JvmOverloads constructor(
         fun onMove(result: MoveResult)
         /** A dot was tapped while [GameView.target] was set; the power-up has been applied. */
         fun onTargetUsed(result: MoveResult) {}
+        /** The same dot was tapped twice in quick succession (a shrinker shortcut). */
+        fun onDoubleTap(cell: Cell) {}
     }
 
     var listener: Listener? = null
@@ -164,9 +168,11 @@ class GameView @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 // A fast flick can deliver its end point only with the UP event.
                 if (board.path.isNotEmpty()) track(event)
+                val tapped = board.path.singleOrNull()
                 val result = board.commit()
                 listener?.onPathChanged(0, false)
                 if (result != null) onCommitted(result)
+                if (tapped != null) onTap(tapped, event) else doubleTap.reset()
                 invalidate()
             }
             MotionEvent.ACTION_CANCEL -> {
@@ -223,6 +229,14 @@ class GameView @JvmOverloads constructor(
         startAnimating()
     }
 
+    // The emulator test cannot tap twice within the usual 300 ms, so its build allows longer.
+    private val doubleTap = DoubleTap(maxOf(ViewConfiguration.getDoubleTapTimeout().toLong(), BuildConfig.DOUBLE_TAP_MS))
+
+    /** A tap on one dot that did not become a path; two on the same dot make a double tap. */
+    private fun onTap(cell: Cell, event: MotionEvent) {
+        if (doubleTap.tap(cell, event.downTime, event.eventTime)) listener?.onDoubleTap(cell)
+    }
+
     /** What a tap on a dot does instead of starting a path (for power-ups). */
     enum class Target { NONE, ONE_DOT, ONE_COLOR }
 
@@ -235,6 +249,13 @@ class GameView @JvmOverloads constructor(
             }
             invalidate()
         }
+
+    /** Applies [how] to [cell] right away, as if the dot had been tapped in that target mode. */
+    fun applyTarget(cell: Cell, how: Target) {
+        if (how == Target.NONE || cell.row !in 0 until board.rows || cell.col !in 0 until board.cols) return
+        target = how
+        useTarget(cell)
+    }
 
     private fun useTarget(cell: Cell) {
         val result = if (target == Target.ONE_DOT) board.removeDot(cell) else board.removeColor(board[cell])
