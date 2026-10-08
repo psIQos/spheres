@@ -45,9 +45,21 @@
     <string name="powerup_time_stop">Time stop</string>
     <string name="powerup_extra_moves">+%1$d moves</string>
     <string name="powerup_expander">Expander</string>
-    <string name="powerup_label">%1$s\n● %2$d</string>
     <string name="powerup_hint_shrinker">Tap a dot to remove it</string>
     <string name="powerup_hint_expander">Tap a dot to remove all dots of its color</string>
     <string name="powerup_too_expensive">%1$d more dots needed</string>
     <string name="wallet">● %1$d dots collected</string>
+    <string name="powerup_count">× %1$d</string>
+    <string name="powerup_buy">+ Shop</string>
+    <string name="powerup_extra_moves_label">+%1$d · %2$s</string>
+    <string name="powerup_none_shrinker">No shrinker left, get more in the shop</string>
+    <string name="shop">Shop</string>
+    <string name="wallet_at">● %1$d dots collected (%2$s)</string>
+    <string name="shop_owned">Owned: %1$d</string>
+    <string name="shop_pack">%1$d for ● %2$d</string>
+    <string name="shop_confirm">Buy %1$d × %2$s for %3$d dots?</string>
+    <string name="shop_buy">Buy</string>
+    <string name="shop_time_stop_note">Stops the clock for %1$d s · in moves mode: +%2$d moves</string>
+    <string name="shop_shrinker_note">Removes one dot · also by double-tapping a dot</string>
+    <string name="shop_expander_note">Removes all dots of one color</string>
 </resources>

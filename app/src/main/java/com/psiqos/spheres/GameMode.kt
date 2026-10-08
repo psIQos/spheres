@@ -91,6 +91,22 @@ object Prefs {
     fun setWalletDots(context: Context, difficulty: Difficulty, dots: Int) =
         prefs(context).edit().putInt(walletKey(difficulty), dots).apply()
 
+    /** Key of the number of [p] owned at [difficulty]. */
+    fun itemKey(p: PowerUp, difficulty: Difficulty): String =
+        if (difficulty == Difficulty.NORMAL) "items_${p.name}" else "items_${p.name}_${difficulty.name}"
+
+    /** Dot account and power-ups owned at [difficulty]. */
+    fun wallet(context: Context, difficulty: Difficulty): Wallet {
+        val prefs = prefs(context)
+        return Wallet(walletDots(context, difficulty), PowerUp.entries.associateWith { prefs.getInt(itemKey(it, difficulty), 0) })
+    }
+
+    fun saveWallet(context: Context, difficulty: Difficulty, wallet: Wallet) {
+        val editor = prefs(context).edit().putInt(walletKey(difficulty), wallet.dots)
+        for (p in PowerUp.entries) editor.putInt(itemKey(p, difficulty), wallet.count(p))
+        editor.apply()
+    }
+
     fun vibrationEnabled(context: Context): Boolean = prefs(context).getBoolean("vibration", true)
 
     fun setVibrationEnabled(context: Context, enabled: Boolean) =

@@ -87,8 +87,8 @@ def dump():
             nodes = {}
             for n in root.iter("node"):
                 rid = n.get("resource-id", "")
-                if rid.startswith(PKG + ":id/"):
-                    nodes[rid.split("/")[-1]] = n
+                if rid.startswith(PKG + ":id/") or rid in ("android:id/button1", "android:id/button2"):
+                    nodes[rid.split("/")[-1]] = n  # button1/button2: confirm/cancel of a dialog
             return nodes
         time.sleep(1)
     print("warning: uiautomator dump failed: " + out[-200:], flush=True)
@@ -519,13 +519,87 @@ def completed_games_test():
           f"finishing the game credits its score ({before} + {final} -> {after})")
 
 
+def top_up(key, dots):
+    """Sets the stored dot account [key] (it must exist already) and restarts the app.
+    Needs the debuggable e2e build for run-as."""
+    sed = f's/name="{key}" value="[0-9]*"/name="{key}" value="{dots}"/'
+    sh(f"am force-stop {PKG}")
+    for _ in range(20):  # the process can take a moment to go away
+        pid = sh(f"pidof {PKG}")
+        if not pid:
+            break
+        time.sleep(0.5)
+    if pid:  # still running: it would write its cached account back
+        sh(f"run-as {PKG} kill -9 {pid}")
+    # Android prefers a leftover backup file (.bak) over the file itself, so edit both.
+    files = sh(f"run-as {PKG} ls shared_prefs 2>&1")
+    out = ""
+    for name in files.split():
+        if name.startswith("spheres.xml"):
+            out += sh(f"run-as {PKG} sed -i '{sed}' shared_prefs/{name} 2>&1")
+    after = sh(f"run-as {PKG} cat shared_prefs/spheres.xml 2>&1")
+    check(f'name="{key}" value="{dots}"' in after,
+          f"run-as sets the account: {out!r}, files {files.split()}, pid {pid!r}\nafter: {after}")
+    launch()
+    time.sleep(2)
+    return f"files {files.split()}, pid before editing {pid!r}"
+
+
+def items(nodes, rid):
+    """Number of a power-up owned, from its button ("Shrinker\\n× 5", or "+ Shop" for none)."""
+    label = text(nodes, rid)
+    if label is None:
+        return None
+    m = re.search(r"×\s*(\d+)", label)
+    return int(m.group(1)) if m else (0 if "Shop" in label else None)
+
+
+def owned(nodes, key):
+    """Number owned as shown in the shop ("Owned: 5")."""
+    digits = re.sub(r"\D", "", text(nodes, f"shop_{key}_count") or "")
+    return int(digits) if digits else None
+
+
+def wait_until(cond, timeout=10):
+    """Dumps the UI until cond(nodes) holds; returns the last dump."""
+    end = time.time() + timeout
+    nodes = dump()
+    while not cond(nodes) and time.time() < end:
+        time.sleep(0.5)
+        nodes = dump()
+    return nodes
+
+
+def buy_pack(key, price, size):
+    """Buys one pack in the shop: the first attempt is cancelled, the second confirmed."""
+    nodes = dump()
+    have, before = wallet(nodes, "shop_wallet"), owned(nodes, key)
+    tap(nodes[f"shop_{key}_buy"])
+    nodes = wait_for("button2")
+    check("button1" in nodes, f"buying {key} asks for confirmation ({text(nodes, 'message')})")
+    if "button2" in nodes:
+        tap(nodes["button2"])
+    nodes = wait_until(lambda n: "button2" not in n and "shop_wallet" in n)
+    check(wallet(nodes, "shop_wallet") == have and owned(nodes, key) == before,
+          f"cancelling buys no {key} ({have} -> {wallet(nodes, 'shop_wallet')})")
+    tap(nodes[f"shop_{key}_buy"])
+    nodes = wait_for("button1")
+    if "button1" in nodes:
+        tap(nodes["button1"])
+    nodes = wait_until(lambda n: owned(n, key) == (before or 0) + size)
+    check(owned(nodes, key) == (before or 0) + size, f"a {key} pack holds {size} ({before} -> {owned(nodes, key)})")
+    check(have is not None and wallet(nodes, "shop_wallet") == have - price,
+          f"a {key} pack costs {price} ({have} -> {wallet(nodes, 'shop_wallet')})")
+
+
 def powerup_test():
-    """Power-ups (issue #3): paid with collected dots, each with its exact effect.
-    The account is kept per difficulty and endless mode earns nothing."""
-    need = 30 + 120 + 60 + 60  # shrinker, expander, time stop, +5 moves
+    """Power-ups (issue #3): items bought in packs in the shop with collected dots, then
+    used in a game, each with its exact effect. The account is kept per difficulty and
+    endless mode earns nothing."""
+    need = 500 + 1000 + 3000  # one pack each of shrinkers, time stops and expanders
     hard_before = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     normal_before = wallet(choose_difficulty("difficulty_normal"), "menu_wallet")
-    have = earn_dots(need)
+    have = earn_dots(need, rounds=1)  # one game shows earning; the prices take dozens
     check(normal_before is not None and have is not None and have > normal_before,
           f"moves games fill the normal account ({normal_before} -> {have})")
     hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
@@ -533,24 +607,65 @@ def powerup_test():
     choose_difficulty("difficulty_normal")
     completed_games_test()
     have = wallet(wait_for("menu_wallet"), "menu_wallet")
-    if not check(have is not None and have >= need, f"earned enough dots for the test ({have})"):
+    info = ""
+    if have is not None and have < need:
+        info = top_up("wallet", need)
+        end = time.time() + 15
+        while time.time() < end:  # a failed dump returns the last screen, from before
+            have = wallet(wait_for("menu_wallet"), "menu_wallet")
+            if have is not None and have >= need:
+                break
+            time.sleep(1)
+    if not check(have is not None and have >= need, f"enough dots for the test ({have}; {info})"):
         return
 
+    # The shop from the menu shows the account; nothing is owned yet.
+    nodes = wait_for("shop_button")
+    tap(nodes["shop_button"])
+    nodes = wait_for("shop_wallet")
+    shot("17-shop")
+    check(wallet(nodes, "shop_wallet") == have, f"shop shows the account ({text(nodes, 'shop_wallet')})")
+    check([owned(nodes, k) for k in ("shrinker", "time_stop", "expander")] == [0, 0, 0],
+          f"nothing owned yet ({[owned(nodes, k) for k in ('shrinker', 'time_stop', 'expander')]})")
+    tap(nodes["shop_back"])
     nodes = wait_for("mode_endless")
+
     tap(nodes["mode_endless"])
     time.sleep(2.5)
     nodes = wait_for("game_view")
     pos = geometry(nodes)
     check("powerup_shrinker" in nodes and "powerup_expander" in nodes, "endless offers shrinker and expander")
     check("powerup_special" not in nodes, "endless has no time stop / extra moves")
+    check(items(nodes, "powerup_shrinker") == 0, f"no shrinker yet ({text(nodes, 'powerup_shrinker')})")
 
     # Endless earns nothing for the account, but still scores.
-    have = wallet(nodes)
     score = int(text(nodes, "score_value") or 0)
     one_move()
     nodes = dump()
     check(int(text(nodes, "score_value") or 0) > score and wallet(nodes) == have,
           f"endless scores but earns no dots (score {score} -> {text(nodes, 'score_value')}, account {have} -> {wallet(nodes)})")
+
+    # None left: the button leads to the shop. Buy there, then the game goes on directly.
+    tap(nodes["powerup_shrinker"])
+    nodes = wait_for("shop_wallet")
+    check("shop_wallet" in nodes, "a power-up with none left opens the shop")
+    buy_pack("shrinker", 500, 5)
+    buy_pack("time_stop", 1000, 5)
+    buy_pack("expander", 3000, 3)
+    nodes = dump()
+    left = wallet(nodes, "shop_wallet")
+    tap(nodes["shop_expander_buy"])  # not enough dots left for another pack
+    time.sleep(1.5)
+    nodes = dump()
+    check("button1" not in nodes and wallet(nodes, "shop_wallet") == left,
+          f"no purchase without enough dots ({left} -> {wallet(nodes, 'shop_wallet')})")
+    tap(nodes["shop_back"])
+    nodes = wait_for("game_view")
+    check("resume" not in nodes, "back from the shop, the game goes on without the pause menu")
+    check(wallet(nodes) == have - need, f"the game shows the account after shopping ({wallet(nodes)})")
+    check(items(nodes, "powerup_shrinker") == 5 and items(nodes, "powerup_expander") == 3,
+          f"the game shows the items ({text(nodes, 'powerup_shrinker')!r}, {text(nodes, 'powerup_expander')!r})")
+    have = wallet(nodes)
 
     # Shrinker: choose, cancel, choose again, use.
     tap(nodes["powerup_shrinker"])
@@ -560,21 +675,30 @@ def powerup_test():
     tap(nodes["powerup_shrinker"])
     time.sleep(0.8)
     nodes = dump()
-    check("powerup_hint" not in nodes and wallet(nodes) == have, "tapping again cancels without paying")
+    check("powerup_hint" not in nodes and items(nodes, "powerup_shrinker") == 5, "tapping again cancels without using one")
     score = int(text(nodes, "score_value") or 0)
     moves = text(nodes, "limit_value")
     tap(nodes["powerup_shrinker"])
     time.sleep(0.8)
-    shot("17-shrinker")
+    shot("18-shrinker")
     sh("input tap {} {}".format(*pos(2, 2)))
-    time.sleep(1.5)
-    nodes = dump()
-    check(wallet(nodes) == have - 30, f"shrinker costs 30 ({have} -> {wallet(nodes)})")
+    nodes = wait_until(lambda n: items(n, "powerup_shrinker") == 4)
+    check(items(nodes, "powerup_shrinker") == 4, f"the shrinker is used up ({text(nodes, 'powerup_shrinker')!r})")
+    check(wallet(nodes) == have, f"using a power-up costs no dots ({have} -> {wallet(nodes)})")
     check(text(nodes, "score_value") == str(score + 1), f"shrinker scores 1 dot ({score} -> {text(nodes, 'score_value')})")
     check(text(nodes, "limit_value") == moves, "a power-up is not a move")
-    have = wallet(nodes)
+
+    # Double tap on a dot: shrinker shortcut (the e2e build allows 3 s between the taps).
+    time.sleep(1)
+    score = int(text(nodes, "score_value") or 0)
+    x, y = pos(3, 3)
+    sh(f"input tap {x} {y}; input tap {x} {y}")
+    nodes = wait_until(lambda n: items(n, "powerup_shrinker") == 3)
+    check(items(nodes, "powerup_shrinker") == 3 and text(nodes, "score_value") == str(score + 1),
+          f"a double tap uses a shrinker ({text(nodes, 'powerup_shrinker')!r}, score {score} -> {text(nodes, 'score_value')})")
 
     # Expander: all dots of the tapped color.
+    time.sleep(1)
     grid = read_board(screencap(), pos)
     color = grid[0][0]
     count = sum(row.count(color) for row in grid)
@@ -582,12 +706,11 @@ def powerup_test():
     tap(nodes["powerup_expander"])
     time.sleep(0.8)
     sh("input tap {} {}".format(*pos(0, 0)))
-    time.sleep(1.5)
-    nodes = dump()
-    check(wallet(nodes) == have - 120, f"expander costs 120 ({have} -> {wallet(nodes)})")
+    nodes = wait_until(lambda n: items(n, "powerup_expander") == 2)
+    check(items(nodes, "powerup_expander") == 2, f"the expander is used up ({text(nodes, 'powerup_expander')!r})")
     check(text(nodes, "score_value") == str(score + count),
           f"expander clears all {count} dots of the color ({score} -> {text(nodes, 'score_value')})")
-    shot("18-after-expander")
+    shot("19-after-expander")
     leave_game()
 
     # Time stop: the clock stands still for 5 seconds.
@@ -596,27 +719,28 @@ def powerup_test():
     time.sleep(2.5)
     one_move()  # the continued game's clock starts with a touch
     nodes = dump()
-    if check("powerup_special" in nodes, "timed offers time stop"):
+    if check("powerup_special" in nodes and items(nodes, "powerup_special") == 5,
+             f"timed offers the time stop ({text(nodes, 'powerup_special')!r})"):
         # Reading the UI takes a second or two, so measure over a longer window:
         # the clock has to lose about 5 s less than the real time that passed.
-        have = wallet(nodes)
         clock = nodes["limit_value"]
         before = text(nodes, "limit_value")
         vibrations = our_vibrations()
         t0 = time.time()
         tap(nodes["powerup_special"])
         l, t, r, b = bounds(clock)
-        blue = 0
-        for _ in range(6):  # the tap can take a moment to arrive on a busy emulator
-            img = screencap()
-            blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
-                       if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
-            if blue > 20:
-                break
-            time.sleep(0.5)
-        shot("19-time-stop", img)
-        nodes = dump()
-        check("time_stop_bar" in nodes, "time stop shows the running-out bar")
+        blue, bar, img = 0, False, None
+        # Both last as long as the stop. Look for them side by side: on a busy emulator the
+        # tap, a screenshot and a dump can each take seconds.
+        while time.time() < t0 + 8 and not (blue > 20 and bar):
+            if blue <= 20:
+                img = screencap()
+                blue = sum(1 for x in range(l, r, 3) for y in range(t, b, 3)
+                           if sum((a - c) ** 2 for a, c in zip(img.getpixel((x, y)), PALETTE[3])) < 3 * 40 ** 2)
+            if not bar:
+                bar = "time_stop_bar" in dump()
+        shot("20-time-stop", img)
+        check(bar, f"time stop shows the running-out bar (looked until {time.time() - t0:.1f} s)")
         if SDK >= 31:
             check(our_vibrations() - vibrations, "time stop vibrates")
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
@@ -630,22 +754,22 @@ def powerup_test():
             lost = int(before) - int(after)
             check(elapsed - 7 <= lost <= elapsed - 3,
                   f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
-        check(wallet(nodes) == have - 60, f"time stop costs 60 ({have} -> {wallet(nodes)})")
+        check(items(nodes, "powerup_special") == 4, f"the time stop is used up ({text(nodes, 'powerup_special')!r})")
     leave_game()
 
-    # +5 moves.
+    # In moves mode the same item gives +5 moves.
     nodes = wait_for("mode_moves")
     tap(nodes["mode_moves"])
     time.sleep(2.5)
     nodes = wait_for("game_view")
-    if check("powerup_special" in nodes, "moves mode offers +5 moves"):
-        have, left = wallet(nodes), text(nodes, "limit_value")
+    if check("powerup_special" in nodes and items(nodes, "powerup_special") == 4,
+             f"moves mode offers +5 moves from the same item ({text(nodes, 'powerup_special')!r})"):
+        left = text(nodes, "limit_value")
         tap(nodes["powerup_special"])
-        time.sleep(1)
-        nodes = dump()
+        nodes = wait_until(lambda n: items(n, "powerup_special") == 3)
         check(left is not None and text(nodes, "limit_value") == str(int(left) + 5),
               f"+5 moves ({left} -> {text(nodes, 'limit_value')})")
-        check(wallet(nodes) == have - 60, f"+5 moves costs 60 ({have} -> {wallet(nodes)})")
+        check(items(nodes, "powerup_special") == 3, f"+5 moves uses up a time stop ({text(nodes, 'powerup_special')!r})")
     leave_game()
     nodes = wait_for("menu_wallet")
     check(re.search(r"\d", text(nodes, "menu_wallet") or "") is not None, f"menu shows the account ({text(nodes, 'menu_wallet')})")
@@ -817,13 +941,25 @@ def main():
 
     # Leaving the app and coming back continues directly; the clock waits for a touch.
     now = text(dump(), "limit_value")
-    for _ in range(3):  # a busy emulator sometimes drops the key press
-        sh("input keyevent 3")  # Home
+    for attempt in range(3):  # a busy emulator sometimes drops the key press
+        if attempt < 2:
+            sh("input keyevent 3")  # Home
+        else:  # the launcher itself, the way the Home key opens it
+            sh("am start -a android.intent.action.MAIN -c android.intent.category.HOME")
         time.sleep(1.5)
         away = text(dump(), "limit_value")  # None: launcher in front
         if away is None:
             break
     check(away is None, "Home leaves the app")
+    # The clock the app saved when it was left: on a busy emulator the Home key can take
+    # seconds to arrive, so the last reading before pressing it is not exact.
+    saved_s = None
+    for _ in range(5):
+        m = re.search(r'name="saved_TIMED">\d+;\w+;\d+;\d+;(\d+);', sh(f"run-as {PKG} cat shared_prefs/spheres.xml"))
+        if m:
+            saved_s = (int(m.group(1)) + 999) // 1000  # shown rounded up, like the HUD
+            break
+        time.sleep(1)
     # Long enough away that a clock running in the background could not hide in the
     # 1-2 s the emulator needs to read the UI and switch apps.
     time.sleep(8)
@@ -832,8 +968,8 @@ def main():
     nodes = wait_for("game_view")
     back_at = text(nodes, "limit_value")
     check("resume" not in nodes and "game_view" in nodes, "back in the app: game continues without pause menu")
-    check(back_at is not None and now is not None and int(back_at) >= int(now) - 3,
-          f"clock stood still while away ({now} -> {back_at}, launcher showed {away})")
+    check(back_at is not None and saved_s is not None and int(back_at) >= saved_s - 1,
+          f"clock stood still while away (saved {saved_s} -> {back_at}; last seen {now}, launcher showed {away})")
     one_move()
     time.sleep(2)
     later = text(dump(), "limit_value")

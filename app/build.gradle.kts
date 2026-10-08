@@ -11,8 +11,14 @@ android {
         applicationId = "com.psiqos.spheres"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.0-beta.7"
+        versionCode = 10
+        versionName = "1.0.0-beta.10"
+        // Longest gap between the taps of a double tap, if longer than the system's.
+        buildConfigField("long", "DOUBLE_TAP_MS", "0L")
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     signingConfigs {
@@ -35,6 +41,14 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.getByName("shared")
+        }
+        // The release build, but debuggable: the emulator test uses run-as to top up
+        // the dot account instead of playing dozens of games for expensive power-ups.
+        create("e2e") {
+            initWith(getByName("release"))
+            isDebuggable = true
+            // adb starts a process per tap, too slow for a real double tap.
+            buildConfigField("long", "DOUBLE_TAP_MS", "3000L")
         }
     }
 
