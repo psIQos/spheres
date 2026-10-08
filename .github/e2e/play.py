@@ -746,14 +746,17 @@ def powerup_test():
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
         while time.time() < t0 + 10:
             time.sleep(0.5)
+        # The clock is read somewhere within the dump, which can take seconds on a busy
+        # emulator: compare against the real time at its start and at its end.
+        dump_start = time.time() - t0
         nodes = dump()
         elapsed = time.time() - t0
         after = text(nodes, "limit_value")
         check("time_stop_bar" not in nodes, "the bar is gone when the time stop ends")
         if check(before is not None and after is not None, f"clock readable ({before}, {after})"):
             lost = int(before) - int(after)
-            check(elapsed - 7 <= lost <= elapsed - 3,
-                  f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
+            check(dump_start - 7 <= lost <= elapsed - 3,
+                  f"time stop holds the clock for 5 s: {lost} s lost in {dump_start:.1f}-{elapsed:.1f} s")
         check(items(nodes, "powerup_special") == 4, f"the time stop is used up ({text(nodes, 'powerup_special')!r})")
     leave_game()
 
