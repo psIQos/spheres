@@ -47,6 +47,7 @@
 
         <TextView
             style="@style/ShopName"
+            android:drawableStart="@drawable/ic_shrinker"
             android:text="@string/powerup_shrinker" />
 
         <TextView
@@ -67,6 +68,7 @@
 
         <TextView
             style="@style/ShopName"
+            android:drawableStart="@drawable/ic_time_stop"
             android:text="@string/powerup_time_stop" />
 
         <TextView
@@ -87,6 +89,7 @@
 
         <TextView
             style="@style/ShopName"
+            android:drawableStart="@drawable/ic_expander"
             android:text="@string/powerup_expander" />
 
         <TextView

@@ -47,8 +47,9 @@
     <string name="powerup_hint_expander">Tippe einen Punkt an, um alle seiner Farbe zu entfernen</string>
     <string name="powerup_too_expensive">Noch %1$d Punkte nötig</string>
     <string name="wallet">● %1$d Punkte gesammelt</string>
-    <string name="powerup_label">%1$s\n× %2$d</string>
-    <string name="powerup_label_buy">%1$s\n+ Shop</string>
+    <string name="powerup_count">× %1$d</string>
+    <string name="powerup_buy">+ Shop</string>
+    <string name="powerup_extra_moves_label">+%1$d · %2$s</string>
     <string name="powerup_none_shrinker">Kein Schrumpfer mehr, neue gibt es im Shop</string>
     <string name="shop">Shop</string>
     <string name="wallet_at">● %1$d Punkte gesammelt (%2$s)</string>

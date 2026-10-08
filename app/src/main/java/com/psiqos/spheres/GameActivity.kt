@@ -115,7 +115,10 @@ class GameActivity : Activity(), GameView.Listener {
             put(PowerUp.EXPANDER, findViewById(R.id.powerup_expander))
         }
         if (powerUpButtons.values.none { it === special }) special.visibility = View.GONE
-        for ((powerUp, button) in powerUpButtons) button.setOnClickListener { onPowerUp(powerUp) }
+        for ((powerUp, button) in powerUpButtons) {
+            button.setCompoundDrawablesRelativeWithIntrinsicBounds(0, powerUp.icon, 0, 0)
+            button.setOnClickListener { onPowerUp(powerUp) }
+        }
 
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
@@ -413,7 +416,14 @@ class GameActivity : Activity(), GameView.Listener {
                 PowerUp.EXPANDER -> getString(R.string.powerup_expander)
             }
             val count = wallet.count(p)
-            setIfChanged(button, if (count > 0) getString(R.string.powerup_label, name, count) else getString(R.string.powerup_label_buy, name))
+            val stock = if (count > 0) getString(R.string.powerup_count, count) else getString(R.string.powerup_buy)
+            // The icon says which power-up it is; in moves mode the time stop gives extra moves.
+            setIfChanged(button,
+                if (p == PowerUp.TIME_STOP && mode == GameMode.MOVES)
+                    getString(R.string.powerup_extra_moves_label, PowerUp.EXTRA_MOVES_COUNT, stock)
+                else stock)
+            val description = "$name $stock"
+            if (button.contentDescription != description) button.contentDescription = description
             val alpha = if (gameOver) 0.4f else 1f
             if (button.alpha != alpha) button.alpha = alpha
             val selected = pendingTarget == p
@@ -470,3 +480,11 @@ class GameActivity : Activity(), GameView.Listener {
         super.onDestroy()
     }
 }
+
+/** Icon of a power-up, after the original Dots. */
+private val PowerUp.icon: Int
+    get() = when (this) {
+        PowerUp.SHRINKER -> R.drawable.ic_shrinker
+        PowerUp.TIME_STOP -> R.drawable.ic_time_stop
+        PowerUp.EXPANDER -> R.drawable.ic_expander
+    }
