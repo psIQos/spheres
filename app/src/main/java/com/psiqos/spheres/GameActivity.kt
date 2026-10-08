@@ -39,6 +39,8 @@ class GameActivity : Activity(), GameView.Listener {
 
     // Power-ups
     private lateinit var wallet: Wallet
+    /** Dots of this game, credited to [wallet] only when the game is completed. */
+    private var earnings = GameEarnings()
     private var bonusMoves = 0
     private var pendingTarget: PowerUp? = null
     private var frozenUntil = 0L
@@ -134,6 +136,7 @@ class GameActivity : Activity(), GameView.Listener {
             remainingMs = saved.remainingMs
             timerStarted = saved.timerStarted
             bonusMoves = saved.bonusMoves
+            earnings = GameEarnings(saved.earnedDots)
             limit += bonusMoves
             frozenLeftMs = saved.timeStopLeftMs
             if (frozenLeftMs > 0) {
@@ -163,6 +166,7 @@ class GameActivity : Activity(), GameView.Listener {
         score = 0
         moves = 0
         bonusMoves = 0
+        earnings = GameEarnings() // dots of an abandoned game are lost
         frozenUntil = 0L
         frozenLeftMs = 0L
         timeStopActive = false
@@ -213,6 +217,7 @@ class GameActivity : Activity(), GameView.Listener {
             (mode == GameMode.TIMED && timerStarted && remainingMs <= 0)
         val untouched = score == 0 && moves == 0 && !timerStarted
         if (finished || untouched) {
+            if (finished) creditEarnings()
             Prefs.clearSavedGame(this, mode)
         } else {
             Prefs.saveGame(
@@ -220,6 +225,7 @@ class GameActivity : Activity(), GameView.Listener {
                 SavedGame(
                     difficulty, score, moves, remainingMs, timerStarted, gameView.colors(), bonusMoves,
                     timeStopLeftMs = if (ticking) maxOf(0, frozenUntil - SystemClock.elapsedRealtime()) else frozenLeftMs,
+                    earnedDots = earnings.dots,
                 ),
             )
         }
@@ -237,10 +243,7 @@ class GameActivity : Activity(), GameView.Listener {
         if (gameOver) return
         score += result.removed.size
         moves++
-        if (PowerUp.earnsDots(mode)) {
-            wallet.earn(result.removed.size)
-            Prefs.saveWallet(this, difficulty, wallet)
-        }
+        if (PowerUp.earnsDots(mode)) earnings.collect(result.removed.size)
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
         save()
@@ -317,6 +320,11 @@ class GameActivity : Activity(), GameView.Listener {
         if (mode == GameMode.ENDLESS) Prefs.submit(this, mode, difficulty, score)
         updateHud()
         save()
+    }
+
+    /** The game is completed: its dots go into the account (once, even if called again). */
+    private fun creditEarnings() {
+        if (earnings.payOut(wallet) > 0) Prefs.saveWallet(this, difficulty, wallet)
     }
 
     private fun use(p: PowerUp) {
@@ -447,6 +455,8 @@ class GameActivity : Activity(), GameView.Listener {
         gameView.frost = false
         gameView.inputEnabled = false
         gameView.haptics.gameOver()
+        creditEarnings()
+        updatePowerUps()
         Prefs.clearSavedGame(this, mode)
         val best = Prefs.best(this, mode, difficulty)
         val isNewBest = Prefs.submit(this, mode, difficulty, score)

@@ -491,6 +491,34 @@ def earn_dots(need, rounds=6):
     return wallet(wait_for("menu_wallet"), "menu_wallet")
 
 
+def completed_games_test():
+    """Dots reach the account only for completed games (issue #20): leaving a game
+    in the middle credits nothing, finishing it later credits its whole score."""
+    before = wallet(wait_for("menu_wallet"), "menu_wallet")
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    one_move()
+    nodes = dump()
+    left = text(nodes, "limit_value")
+    check(int(text(nodes, "score_value") or 0) > 0 and wallet(nodes) == before,
+          f"a move scores but credits nothing yet (score {text(nodes, 'score_value')}, account {before} -> {wallet(nodes)})")
+    leave_game()
+    after_leaving = wallet(wait_for("menu_wallet"), "menu_wallet")
+    check(after_leaving == before, f"leaving an unfinished game credits nothing ({before} -> {after_leaving})")
+
+    nodes = wait_for("mode_moves")
+    tap(nodes["mode_moves"])
+    time.sleep(2.5)
+    wait_for("game_view")
+    final = play_moves(int(left) if left and left.isdigit() else 30, "complete")
+    time.sleep(1.5)
+    leave_game()
+    after = wallet(wait_for("menu_wallet"), "menu_wallet")
+    check(before is not None and after == before + final,
+          f"finishing the game credits its score ({before} + {final} -> {after})")
+
+
 def top_up(key, dots):
     """Sets the stored dot account [key] (it must exist already) and restarts the app.
     Needs the debuggable e2e build for run-as."""
@@ -577,6 +605,8 @@ def powerup_test():
     hard_after = wallet(choose_difficulty("difficulty_hard"), "menu_wallet")
     check(hard_after == hard_before, f"hard account untouched by normal games ({hard_before} -> {hard_after})")
     choose_difficulty("difficulty_normal")
+    completed_games_test()
+    have = wallet(wait_for("menu_wallet"), "menu_wallet")
     info = ""
     if have is not None and have < need:
         info = top_up("wallet", need)
@@ -716,14 +746,17 @@ def powerup_test():
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
         while time.time() < t0 + 10:
             time.sleep(0.5)
+        # The clock is read somewhere within the dump, which can take seconds on a busy
+        # emulator: compare against the real time at its start and at its end.
+        dump_start = time.time() - t0
         nodes = dump()
         elapsed = time.time() - t0
         after = text(nodes, "limit_value")
         check("time_stop_bar" not in nodes, "the bar is gone when the time stop ends")
         if check(before is not None and after is not None, f"clock readable ({before}, {after})"):
             lost = int(before) - int(after)
-            check(elapsed - 7 <= lost <= elapsed - 3,
-                  f"time stop holds the clock for 5 s: {lost} s lost in {elapsed:.1f} s")
+            check(dump_start - 7 <= lost <= elapsed - 3,
+                  f"time stop holds the clock for 5 s: {lost} s lost in {dump_start:.1f}-{elapsed:.1f} s")
         check(items(nodes, "powerup_special") == 4, f"the time stop is used up ({text(nodes, 'powerup_special')!r})")
     leave_game()
 

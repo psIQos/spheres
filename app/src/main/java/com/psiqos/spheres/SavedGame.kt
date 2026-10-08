@@ -14,6 +14,8 @@ data class SavedGame(
     val bonusMoves: Int = 0,
     /** Time stop power-up still to run, in ms. */
     val timeStopLeftMs: Long = 0,
+    /** Dots collected in this game, credited to the account when it is completed. */
+    val earnedDots: Int = 0,
 ) {
     fun encode(): String = listOf(
         VERSION,
@@ -25,6 +27,7 @@ data class SavedGame(
         colors.joinToString("/") { row -> row.joinToString("") },
         bonusMoves,
         timeStopLeftMs,
+        earnedDots,
     ).joinToString(";")
 
     override fun equals(other: Any?): Boolean =
@@ -38,15 +41,18 @@ data class SavedGame(
         /** Null for anything that is not a complete, consistent saved game. */
         fun decode(text: String?): SavedGame? = runCatching {
             val p = text!!.split(";")
-            // Fewer fields: saved by an earlier version, before power-ups existed.
-            require(p.size in 7..9 && p[0] == VERSION)
+            // Fewer fields: saved by an earlier version, before power-ups existed or before
+            // dots were credited only for completed games (those were already credited).
+            require(p.size in 7..10 && p[0] == VERSION)
             val difficulty = Difficulty.valueOf(p[1])
             val colors = p[6].split("/").map { row -> IntArray(row.length) { row[it].digitToInt() } }
             require(colors.size == difficulty.size && colors.all { it.size == difficulty.size })
             require(colors.all { row -> row.all { it in 0 until difficulty.colors } })
             val bonus = p.getOrNull(7)?.toInt() ?: 0
             val timeStop = p.getOrNull(8)?.toLong() ?: 0
-            SavedGame(difficulty, p[2].toInt(), p[3].toInt(), p[4].toLong(), p[5] == "1", colors, bonus, timeStop)
+            val earned = p.getOrNull(9)?.toInt() ?: 0
+            require(earned >= 0)
+            SavedGame(difficulty, p[2].toInt(), p[3].toInt(), p[4].toLong(), p[5] == "1", colors, bonus, timeStop, earned)
         }.getOrNull()
     }
 }

@@ -2,7 +2,7 @@ package com.psiqos.spheres
 
 /**
  * Special moves, as in Dots. They are items: bought in packs in the shop with collected
- * dots (every dot a player clears goes into a dot account), and used up in a game.
+ * dots (every dot a player clears in a completed game goes into a dot account), and used up in a game.
  *
  * Unit prices follow the original Dots shop (shrinkers 5 for 500, time stops 5 for 1,000,
  * expanders 5 for 5,000). The expensive expander comes in packs of three (issue #3).
@@ -64,5 +64,27 @@ class Wallet(dots: Int, items: Map<PowerUp, Int> = emptyMap()) {
         if (count(p) <= 0) return false
         items[p] = count(p) - 1
         return true
+    }
+}
+
+/**
+ * Dots collected in the running game. They reach the account only once the game is
+ * completed (time or moves used up); a game that is abandoned earns nothing.
+ */
+class GameEarnings(dots: Int = 0) {
+    var dots = dots
+        private set
+
+    fun collect(count: Int) {
+        require(count >= 0)
+        dots += count
+    }
+
+    /** The game is completed: moves the dots to [wallet] and returns how many; only once. */
+    fun payOut(wallet: Wallet): Int {
+        val paid = dots
+        wallet.earn(paid)
+        dots = 0
+        return paid
     }
 }
