@@ -838,6 +838,53 @@ def difficulty_test(normal_best):
     set_board(6, 5)
 
 
+def background(img=None):
+    """Brightness (0-255) of the window background at the left edge, halfway down."""
+    img = img or screencap()
+    return sum(img.getpixel((4, img.height // 2))) // 3
+
+
+def set_night(on):
+    """Switches the device's dark theme and waits until the app shows it."""
+    sh(f"cmd uimode night {'yes' if on else 'no'}")
+    end = time.time() + 15
+    while time.time() < end:
+        level = background()
+        if (level < 80) == on:
+            return level
+        time.sleep(0.5)
+    return background()
+
+
+def dark_mode_test():
+    """Dark mode follows the device setting (issue #22), also in a running game."""
+    nodes = wait_for("mode_endless")
+    level = set_night(True)
+    check(level < 80, f"dark theme: menu background is dark ({level})")
+    shot("17-menu-dark")
+
+    tap(wait_for("mode_endless")["mode_endless"])
+    nodes = wait_for("game_view")
+    level = background()
+    check(level < 80, f"dark theme: game background is dark ({level})")
+    one_move()  # a touched game, so that it is saved
+    nodes = dump()
+    pos = geometry(nodes)
+    score = text(nodes, "score_value")
+    board = read_board(screencap(), pos)
+    shot("18-game-dark")
+
+    level = set_night(False)
+    check(level > 200, f"switching back in the game: background is light ({level})")
+    nodes = wait_until(lambda n: "score_value" in n)
+    check("resume" not in nodes, "theme switch: game continues without pause menu")
+    check(text(nodes, "score_value") == score, f"theme switch keeps the score ({text(nodes, 'score_value')} == {score})")
+    after = read_board(screencap(), pos)
+    check(after == board and -1 not in sum(board, []), "theme switch keeps the board")
+    shot("19-game-light")
+    leave_game()
+
+
 def launch():
     """Starts the app the way the launcher icon does."""
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
@@ -994,6 +1041,7 @@ def main():
     settings_test()
     vibration_test()
     powerup_test()
+    dark_mode_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))

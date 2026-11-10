@@ -4,5 +4,9 @@
     <color name="text_primary">#FF4E4E52</color>
     <color name="text_secondary">#FFA4A4AA</color>
     <color name="scrim">#E6FFFFFF</color>
+    <color name="button_neutral">#FFEDEDED</color>
+    <color name="ripple_neutral">#22000000</color>
+    <color name="divider">#14000000</color>
     <color name="ic_launcher_background">#FFFFFFFF</color>
+    <bool name="light_system_bars">true</bool>
 </resources>

@@ -2,6 +2,7 @@ package com.psiqos.spheres
 
 import android.app.Activity
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -35,6 +36,8 @@ class GameActivity : Activity(), GameView.Listener {
     private var score = 0
     private var moves = 0
     private var gameOver = false
+    /** Night bits of the configuration the views were built with (dark theme or not). */
+    private var nightMode = 0
     private var paused = false
 
     // Power-ups
@@ -80,6 +83,7 @@ class GameActivity : Activity(), GameView.Listener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        nightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
         setContentView(R.layout.activity_game)
         mode = runCatching { GameMode.valueOf(intent.getStringExtra(GameMode.EXTRA)!!) }.getOrDefault(GameMode.TIMED)
 
@@ -482,6 +486,15 @@ class GameActivity : Activity(), GameView.Listener {
         stopTicking()
         save()
         gameView.awaitTouch()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The activity handles uiMode itself so that nothing else restarts the game; the
+        // device's dark theme needs the views rebuilt though. onPause saves the game and
+        // onCreate continues it. A game-over screen keeps its colors (the result would be lost).
+        val night = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        if (night != nightMode && !gameOver) recreate()
     }
 
     override fun onDestroy() {
