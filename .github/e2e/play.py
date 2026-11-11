@@ -395,7 +395,8 @@ def open_settings():
 
 
 def choose_difficulty(rid):
-    nodes = dump()
+    # In the settings (perhaps still rebuilding after the last choice) or in the menu.
+    nodes = wait_until(lambda n: rid in n or "settings_button" in n)
     if rid not in nodes:
         nodes = open_settings()
     if rid in nodes:
