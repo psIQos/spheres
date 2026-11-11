@@ -118,6 +118,12 @@ object Prefs {
     fun setThemeMode(context: Context, mode: ThemeMode) =
         prefs(context).edit().putString("theme", mode.name).apply()
 
+    /** Patterns on the dots, so that colors can be told apart without seeing them. */
+    fun dotPatterns(context: Context): Boolean = prefs(context).getBoolean("dot_patterns", false)
+
+    fun setDotPatterns(context: Context, enabled: Boolean) =
+        prefs(context).edit().putBoolean("dot_patterns", enabled).apply()
+
     fun soundEnabled(context: Context): Boolean = prefs(context).getBoolean("sound", true)
 
     fun setSoundEnabled(context: Context, enabled: Boolean) =

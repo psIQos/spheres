@@ -63,6 +63,11 @@ class SettingsActivity : ThemedActivity() {
             }
         }
 
+        findViewById<Switch>(R.id.patterns_switch).apply {
+            isChecked = Prefs.dotPatterns(this@SettingsActivity)
+            setOnCheckedChangeListener { _, on -> Prefs.setDotPatterns(this@SettingsActivity, on) }
+        }
+
         findViewById<android.view.View>(R.id.reset_records).setOnClickListener {
             AlertDialog.Builder(this)
                 .setMessage(R.string.reset_records_confirm)

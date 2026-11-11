@@ -50,6 +50,7 @@ class MainActivity : ThemedActivity() {
     }
 
     private fun refresh() {
+        findViewById<DotRowView>(R.id.dot_row).patterns = Prefs.dotPatterns(this)
         val difficulty = Prefs.difficulty(this)
         findViewById<TextView>(R.id.difficulty_summary).text =
             getString(R.string.difficulty, getString(difficulty.label))

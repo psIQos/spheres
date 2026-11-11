@@ -79,6 +79,21 @@ class GameView @JvmOverloads constructor(
     private val framePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
     private val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val linePath = Path()
+    private val patternPainter = PatternPainter()
+
+    /** Patterns on the dots (accessibility); the dots get a little bigger for them. */
+    var patterns = false
+        set(value) {
+            if (field != value) {
+                field = value
+                updateRadius()
+                invalidate()
+            }
+        }
+
+    private fun updateRadius() {
+        dotRadius = cellSize * if (patterns) 0.24f else 0.2f
+    }
 
     init {
         isHapticFeedbackEnabled = true
@@ -140,8 +155,8 @@ class GameView @JvmOverloads constructor(
         tracker.originX = originX
         tracker.originY = originY
         tracker.cellSize = cellSize
-        dotRadius = cellSize * 0.2f
-        linePaint.strokeWidth = dotRadius * 0.55f
+        updateRadius()
+        linePaint.strokeWidth = cellSize * 0.2f * 0.55f
         framePaint.strokeWidth = 10 * density
     }
 
@@ -393,7 +408,9 @@ class GameView @JvmOverloads constructor(
                 canvas.drawCircle(e.x, e.y, dotRadius * (1f + 1.1f * t), fillPaint)
             } else {
                 fillPaint.alpha = 255
-                canvas.drawCircle(e.x, e.y, dotRadius * (1f - t) * (1f + 0.3f * (1 - t)), fillPaint)
+                val radius = dotRadius * (1f - t) * (1f + 0.3f * (1 - t))
+                canvas.drawCircle(e.x, e.y, radius, fillPaint)
+                if (patterns) patternPainter.draw(canvas, DotPattern.forColor(e.color), e.x, e.y, radius)
             }
         }
 
@@ -404,6 +421,7 @@ class GameView @JvmOverloads constructor(
             if (y < -cellSize) continue
             dotPaint.color = Palette.dot(board[r, c])
             canvas.drawCircle(centerX(c), y, dotRadius, dotPaint)
+            if (patterns) patternPainter.draw(canvas, DotPattern.forColor(board[r, c]), centerX(c), y, dotRadius)
             if (target != Target.NONE) {
                 // Selectable for a power-up: a softly pulsing ring.
                 val t = (now % 900) / 900f

@@ -39,6 +39,7 @@
     <string name="theme_dark">Dark</string>
     <string name="settings_sound">Sound</string>
     <string name="settings_vibration">Vibration</string>
+    <string name="settings_patterns">Patterns on the dots</string>
     <string name="settings_records">Records</string>
     <string name="reset_records">Reset all records</string>
     <string name="reset_records_confirm">Delete the records of all modes and difficulties?</string>

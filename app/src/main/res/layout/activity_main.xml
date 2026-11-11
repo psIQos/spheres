@@ -17,6 +17,7 @@
         android:paddingBottom="24dp">
 
         <com.psiqos.spheres.DotRowView
+            android:id="@+id/dot_row"
             android:layout_width="200dp"
             android:layout_height="28dp" />
 

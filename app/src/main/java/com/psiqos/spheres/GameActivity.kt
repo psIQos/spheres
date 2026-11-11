@@ -125,6 +125,7 @@ class GameActivity : ThemedActivity(), GameView.Listener {
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
         gameView.haptics.enabled = Prefs.vibrationEnabled(this)
+        gameView.patterns = Prefs.dotPatterns(this)
         gameView.listener = this
 
         val saved = Prefs.savedGame(this, mode)

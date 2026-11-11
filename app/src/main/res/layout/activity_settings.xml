@@ -112,6 +112,11 @@
             style="@style/SettingsSwitch"
             android:text="@string/settings_vibration" />
 
+        <Switch
+            android:id="@+id/patterns_switch"
+            style="@style/SettingsSwitch"
+            android:text="@string/settings_patterns" />
+
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"

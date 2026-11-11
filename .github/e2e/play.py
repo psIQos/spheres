@@ -377,6 +377,16 @@ def resume_test():
     shot("15-resumed")
 
 
+def settings_view(rid):
+    """Dumps the settings, scrolling down if the view is below the fold."""
+    nodes = dump()
+    if rid not in nodes:
+        sh("input swipe 500 1500 500 700 300")
+        time.sleep(1)
+        nodes = dump()
+    return nodes
+
+
 def open_settings():
     nodes = wait_for("settings_button")
     tap(nodes["settings_button"])
@@ -399,14 +409,19 @@ def choose_difficulty(rid):
 def settings_test():
     """Settings screen (issue #7): options are shown, records can be reset after confirming."""
     nodes = open_settings()
-    for rid in ("difficulty_easy", "difficulty_normal", "difficulty_hard", "sound_switch", "vibration_switch", "reset_records"):
+    for rid in ("difficulty_easy", "difficulty_normal", "difficulty_hard"):
         check(rid in nodes, f"settings show {rid}")
-    check("checked=\"true\"" in ET.tostring(nodes["difficulty_normal"]).decode() if "difficulty_normal" in nodes else False,
+    check("difficulty_normal" in nodes and 'checked="true"' in ET.tostring(nodes["difficulty_normal"]).decode(),
           "normal is selected")
     check(re.search(r"5\D+6.6\D+60\D+30", text(nodes, "difficulty_normal") or "") is not None,
           f"normal lists its rules ({text(nodes, 'difficulty_normal')})")
     shot("16-settings")
-    tap(nodes["reset_records"])
+    top = nodes
+    nodes = settings_view("reset_records")
+    for rid in ("sound_switch", "vibration_switch", "patterns_switch", "reset_records"):
+        check(rid in nodes or rid in top, f"settings show {rid}")
+    if "reset_records" in nodes:
+        tap(nodes["reset_records"])
     time.sleep(1)
     root = ET.fromstring(sh("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml"))
     confirm = next((n for n in root.iter("node") if n.get("resource-id") == "android:id/button1"), None)
@@ -932,6 +947,66 @@ def dark_mode_test():
     set_night(False)
 
 
+def set_patterns(on):
+    """Switches the patterns on the dots in the settings, back in the menu afterwards."""
+    open_settings()
+    nodes = settings_view("patterns_switch")
+    if "patterns_switch" in nodes and ('checked="true"' in ET.tostring(nodes["patterns_switch"]).decode()) != on:
+        tap(nodes["patterns_switch"])
+    nodes = wait_until(lambda n: "patterns_switch" in n and
+                       ('checked="true"' in ET.tostring(n["patterns_switch"]).decode()) == on)
+    ok = "patterns_switch" in nodes and ('checked="true"' in ET.tostring(nodes["patterns_switch"]).decode()) == on
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    return ok
+
+
+def patterns_test():
+    """Patterns on the dots (accessibility), switched on separately: the same saved
+    board shows each color's pattern, red stays plain."""
+    nodes = wait_for("mode_endless")
+    tap(nodes["mode_endless"])
+    nodes = wait_for("game_view")
+    pos = geometry(nodes)
+    board = read_board(screencap(), pos)
+    leave_game()
+    check(set_patterns(True), "patterns switch turns on")
+
+    tap(wait_for("mode_endless")["mode_endless"])
+    wait_for("game_view")
+    radius = (pos(0, 1)[0] - pos(0, 0)[0]) * 0.24
+    # Where each pattern darkens the dot: stripes, spots and crosshatch cover the center,
+    # rings the outer ring.
+    probe = {3: 0.62}
+
+    def wrong_dots(img):
+        wrong = []
+        for r in range(ROWS):
+            for c in range(COLS):
+                k = board[r][c]
+                if k < 0:
+                    continue
+                x, y = pos(r, c)
+                px = img.getpixel((int(x + probe.get(k, 0) * radius), y))
+                darker = sum(PALETTE[k]) - sum(px) > 60 and max(px) < max(PALETTE[k]) - 30
+                plain = sum((p - q) ** 2 for p, q in zip(px, PALETTE[k])) < 3 * 30 ** 2
+                if (k == 0 and not plain) or (k != 0 and not darker):
+                    wrong.append((r, c, k, px))
+        return wrong
+
+    end = time.time() + 10  # the dots drop in first
+    while True:
+        img = screencap()
+        wrong = wrong_dots(img)
+        if not wrong or time.time() > end:
+            break
+        time.sleep(0.5)
+    shot("25-patterns", img)
+    check(-1 not in sum(board, []) and not wrong, f"each color shows its pattern, red plain ({wrong[:4]})")
+    leave_game()
+    check(set_patterns(False), "patterns switch turns off")
+
+
 def launch():
     """Starts the app the way the launcher icon does."""
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
@@ -1089,6 +1164,7 @@ def main():
     vibration_test()
     powerup_test()
     dark_mode_test()
+    patterns_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))
