@@ -1,7 +1,7 @@
 package com.psiqos.spheres
 
-import android.app.Activity
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -15,7 +15,7 @@ import com.psiqos.spheres.game.Palette
 import com.psiqos.spheres.game.Sound
 import com.psiqos.spheres.game.TimeStopBar
 
-class GameActivity : Activity(), GameView.Listener {
+class GameActivity : ThemedActivity(), GameView.Listener {
 
     private lateinit var mode: GameMode
     private var difficulty = Difficulty.NORMAL
@@ -125,6 +125,7 @@ class GameActivity : Activity(), GameView.Listener {
         Sound.enabled = Prefs.soundEnabled(this)
         Sound.load(this)
         gameView.haptics.enabled = Prefs.vibrationEnabled(this)
+        gameView.patterns = Prefs.dotPatterns(this)
         gameView.listener = this
 
         val saved = Prefs.savedGame(this, mode)
@@ -482,6 +483,15 @@ class GameActivity : Activity(), GameView.Listener {
         stopTicking()
         save()
         gameView.awaitTouch()
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // The activity handles uiMode itself so that nothing else restarts the game; a switch
+        // of the device's dark theme needs the views rebuilt though (unless the design is
+        // fixed in the settings). onPause saves the game and onCreate continues it. A
+        // game-over screen keeps its colors (the result would be lost).
+        if (wantsNight(newConfig) != builtNight && !gameOver) recreate()
     }
 
     override fun onDestroy() {

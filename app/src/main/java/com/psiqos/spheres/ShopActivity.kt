@@ -1,13 +1,12 @@
 package com.psiqos.spheres
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
 
 /** Buys power-ups in packs with the dot account of one difficulty; every purchase is confirmed. */
-class ShopActivity : Activity() {
+class ShopActivity : ThemedActivity() {
 
     private lateinit var difficulty: Difficulty
     private lateinit var wallet: Wallet

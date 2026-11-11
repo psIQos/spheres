@@ -1,12 +1,11 @@
 package com.psiqos.spheres
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 
-class MainActivity : Activity() {
+class MainActivity : ThemedActivity() {
 
     private val modes = listOf(
         Triple(GameMode.TIMED, R.id.mode_timed, R.id.best_timed),
@@ -51,6 +50,7 @@ class MainActivity : Activity() {
     }
 
     private fun refresh() {
+        findViewById<DotRowView>(R.id.dot_row).patterns = Prefs.dotPatterns(this)
         val difficulty = Prefs.difficulty(this)
         findViewById<TextView>(R.id.difficulty_summary).text =
             getString(R.string.difficulty, getString(difficulty.label))

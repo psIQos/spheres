@@ -11,8 +11,8 @@ android {
         applicationId = "com.psiqos.spheres"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.0-beta.10"
+        versionCode = 11
+        versionName = "1.0.0-beta.11"
         // Longest gap between the taps of a double tap, if longer than the system's.
         buildConfigField("long", "DOUBLE_TAP_MS", "0L")
     }

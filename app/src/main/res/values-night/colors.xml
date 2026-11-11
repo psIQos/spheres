@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="background">#FF000000</color>
+    <color name="text_primary">#FFEDEDF0</color>
+    <color name="text_secondary">#FF8E8E94</color>
+    <color name="scrim">#E6000000</color>
+    <color name="button_neutral">#FF2A2A2E</color>
+    <color name="ripple_neutral">#33FFFFFF</color>
+    <color name="divider">#1FFFFFFF</color>
+    <bool name="light_system_bars">false</bool>
+</resources>

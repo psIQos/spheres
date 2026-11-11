@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Spheres" parent="android:Theme.Material.Light.NoActionBar">
+    <!-- Light or dark platform theme; values-night switches it with the device's dark theme. -->
+    <style name="Base.Theme.Spheres" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.Spheres" parent="Base.Theme.Spheres">
         <item name="android:windowBackground">@color/background</item>
         <item name="android:statusBarColor">@color/background</item>
         <item name="android:navigationBarColor">@color/background</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar">@bool/light_system_bars</item>
         <item name="android:colorAccent">#FF5CA8EC</item>
     </style>
 
@@ -63,6 +66,15 @@
         <item name="android:layout_height">56dp</item>
         <item name="android:textColor">@color/text_primary</item>
         <item name="android:textSize">16sp</item>
+    </style>
+
+    <style name="ThemeOption">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">15sp</item>
     </style>
 
     <style name="PowerUpButton">

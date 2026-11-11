@@ -3,7 +3,10 @@
 by reading the dot colors from screenshots, checks score/HUD/game-over, then
 runs a monkey stress test and fails on any crash.
 
-Usage: play.py <apk> <output-dir>
+Usage: play.py <apk> <output-dir> [--full | --smoke]
+
+--full (default) runs every check and the monkey test; --smoke only installs the app,
+plays a few moves and checks for crashes, as quick feedback for draft pull requests.
 
 Screenshots are written to <output-dir>; publish_shots.py makes them readable
 through the GitHub API.
@@ -21,11 +24,15 @@ from PIL import Image
 
 PKG = "com.psiqos.spheres"
 APK, OUT = sys.argv[1], sys.argv[2]
+SMOKE = "--smoke" in sys.argv[3:]
 os.makedirs(OUT, exist_ok=True)
 
 # Must match game/Palette in GameView.kt.
 PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0xA8, 0xEC), (0x9E, 0x6C, 0xDB),
            (0x27, 0xB9, 0xA6)]
+# Lighter dots of the dark design (Palette.nightDots).
+NIGHT_PALETTE = [(0xFF, 0x7A, 0x72), (0xFF, 0xD5, 0x4F), (0x8F, 0xE5, 0x7A), (0x62, 0xB6, 0xFF), (0xC0, 0x8C, 0xFF),
+                 (0x34, 0xD9, 0xC3)]
 # Board of the difficulty being played (see Difficulty in GameMode.kt).
 ROWS = COLS = 6
 COLORS = 5
@@ -152,15 +159,15 @@ def geometry(nodes):
     return lambda row, col: (int(ox + (col + 0.5) * cell), int(oy + (row + 0.5) * cell))
 
 
-def read_board(img, pos):
+def read_board(img, pos, palette=PALETTE, tolerance=40):
     grid = []
     for r in range(ROWS):
         row = []
         for c in range(COLS):
             px = img.getpixel(pos(r, c))
-            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in PALETTE[:COLORS]]
+            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in palette[:COLORS]]
             k = min(range(COLORS), key=d.__getitem__)
-            row.append(k if d[k] < 3 * 40 ** 2 else -1)
+            row.append(k if d[k] < 3 * tolerance ** 2 else -1)
         grid.append(row)
     return grid
 
@@ -264,14 +271,15 @@ def backtrack_test():
     check(after == str(before + 2), f"backtrack over {len(path)} dots back to the 2nd: score {before} -> {after}, expected +2")
 
 
-def play_moves(total, label, shots=False):
-    """Plays a whole moves-mode game on the current screen; returns the final score."""
+def play_moves(total, label, shots=False, moves_left=None):
+    """Plays [total] moves of a moves-mode game on the current screen (by default the whole
+    game, i.e. [total] moves are left); returns the final score."""
     nodes = dump()
     pos = geometry(nodes)
     expected = 0
     # A continued game does not start at 0.
     observed = int(text(nodes, "score_value") or 0)
-    moves_left = total
+    moves_left = total if moves_left is None else moves_left
     squares = 0
     took_drag_shot = False
     for move in range(total):
@@ -374,6 +382,16 @@ def resume_test():
     shot("15-resumed")
 
 
+def settings_view(rid):
+    """Dumps the settings, scrolling down if the view is below the fold."""
+    nodes = dump()
+    if rid not in nodes:
+        sh("input swipe 500 1500 500 700 300")
+        time.sleep(1)
+        nodes = dump()
+    return nodes
+
+
 def open_settings():
     nodes = wait_for("settings_button")
     tap(nodes["settings_button"])
@@ -382,7 +400,11 @@ def open_settings():
 
 
 def choose_difficulty(rid):
-    nodes = open_settings()
+    # In the settings or in the menu. A screen rebuilding itself after a design change
+    # (by the last choice or the device's dark theme) cannot be read for a while.
+    nodes = wait_until(lambda n: rid in n or "settings_button" in n, timeout=40)
+    if rid not in nodes and "settings_button" in nodes:
+        nodes = open_settings()
     if rid in nodes:
         tap(nodes[rid])
     time.sleep(0.5)
@@ -394,14 +416,19 @@ def choose_difficulty(rid):
 def settings_test():
     """Settings screen (issue #7): options are shown, records can be reset after confirming."""
     nodes = open_settings()
-    for rid in ("difficulty_easy", "difficulty_normal", "difficulty_hard", "sound_switch", "vibration_switch", "reset_records"):
+    for rid in ("difficulty_easy", "difficulty_normal", "difficulty_hard"):
         check(rid in nodes, f"settings show {rid}")
-    check("checked=\"true\"" in ET.tostring(nodes["difficulty_normal"]).decode() if "difficulty_normal" in nodes else False,
+    check("difficulty_normal" in nodes and 'checked="true"' in ET.tostring(nodes["difficulty_normal"]).decode(),
           "normal is selected")
     check(re.search(r"5\D+6.6\D+60\D+30", text(nodes, "difficulty_normal") or "") is not None,
           f"normal lists its rules ({text(nodes, 'difficulty_normal')})")
     shot("16-settings")
-    tap(nodes["reset_records"])
+    top = nodes
+    nodes = settings_view("reset_records")
+    for rid in ("sound_switch", "vibration_switch", "patterns_switch", "reset_records"):
+        check(rid in nodes or rid in top, f"settings show {rid}")
+    if "reset_records" in nodes:
+        tap(nodes["reset_records"])
     time.sleep(1)
     root = ET.fromstring(sh("uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; cat /sdcard/ui.xml"))
     confirm = next((n for n in root.iter("node") if n.get("resource-id") == "android:id/button1"), None)
@@ -718,7 +745,9 @@ def powerup_test():
     tap(nodes["mode_timed"])
     time.sleep(2.5)
     one_move()  # the continued game's clock starts with a touch
+    read_start = time.time()  # the clock before is read somewhere within this dump
     nodes = dump()
+    read_end = time.time()
     if check("powerup_special" in nodes and items(nodes, "powerup_special") == 5,
              f"timed offers the time stop ({text(nodes, 'powerup_special')!r})"):
         # Reading the UI takes a second or two, so measure over a longer window:
@@ -746,17 +775,20 @@ def powerup_test():
         check(blue > 20, f"clock turns blue during the time stop ({blue} blue pixels)")
         while time.time() < t0 + 10:
             time.sleep(0.5)
-        # The clock is read somewhere within the dump, which can take seconds on a busy
-        # emulator: compare against the real time at its start and at its end.
-        dump_start = time.time() - t0
+        # Each clock reading happens somewhere within a dump, which can take seconds on a
+        # busy emulator: the real time between the two readings lies between the end of
+        # the first dump and the start of the second, and the start of the first and the
+        # end of the second.
+        dump_start = time.time()
         nodes = dump()
-        elapsed = time.time() - t0
+        dump_end = time.time()
+        shortest, longest = dump_start - read_end, dump_end - read_start
         after = text(nodes, "limit_value")
         check("time_stop_bar" not in nodes, "the bar is gone when the time stop ends")
         if check(before is not None and after is not None, f"clock readable ({before}, {after})"):
             lost = int(before) - int(after)
-            check(dump_start - 7 <= lost <= elapsed - 3,
-                  f"time stop holds the clock for 5 s: {lost} s lost in {dump_start:.1f}-{elapsed:.1f} s")
+            check(shortest - 7 <= lost <= longest - 3,
+                  f"time stop holds the clock for 5 s: {lost} s lost in {shortest:.1f}-{longest:.1f} s")
         check(items(nodes, "powerup_special") == 4, f"the time stop is used up ({text(nodes, 'powerup_special')!r})")
     leave_game()
 
@@ -838,6 +870,150 @@ def difficulty_test(normal_best):
     set_board(6, 5)
 
 
+def background(img=None):
+    """Brightness (0-255) of the window background at the left edge, halfway down."""
+    img = img or screencap()
+    return sum(img.getpixel((4, img.height // 2))) // 3
+
+
+def wait_background(dark, timeout=15):
+    """Waits until the app shows the dark (or light) design; returns the brightness."""
+    end = time.time() + timeout
+    while time.time() < end:
+        level = background()
+        if (level < 80) == dark:
+            return level
+        time.sleep(0.5)
+    return background()
+
+
+def set_night(on):
+    """Switches the device's dark theme and waits until the app shows it."""
+    sh(f"cmd uimode night {'yes' if on else 'no'}")
+    return wait_background(on)
+
+
+def choose_theme(rid, from_menu=True):
+    """Picks a design in the settings; the screen rebuilds itself with it. While it
+    rebuilds, the menu below can show for a moment, so the caller says where it is."""
+    nodes = open_settings() if from_menu else wait_for(rid, timeout=40)
+    if rid in nodes:
+        tap(nodes[rid])
+    return wait_until(lambda n: rid in n and 'checked="true"' in ET.tostring(n[rid]).decode(), timeout=40)
+
+
+def dark_mode_test():
+    """Dark design (issue #22): follows the device setting, also in a running game, and
+    can be fixed to light or dark in the settings."""
+    nodes = wait_for("mode_endless")
+    level = set_night(True)
+    check(level <= 8, f"dark theme: menu background is black ({level})")
+    shot("21-menu-dark")
+
+    tap(wait_for("mode_endless")["mode_endless"])
+    nodes = wait_for("game_view")
+    check(background() <= 8, f"dark theme: game background is black ({background()})")
+    one_move()  # a touched game, so that it is saved
+    nodes = dump()
+    pos = geometry(nodes)
+    score = text(nodes, "score_value")
+    img = screencap()
+    board = read_board(img, pos, NIGHT_PALETTE, tolerance=20)
+    # Each dot nearer to its dark design color than to its day color.
+    darker = [(r, c) for r in range(ROWS) for c in range(COLS) if board[r][c] >= 0 and
+              sum((a - b) ** 2 for a, b in zip(img.getpixel(pos(r, c)), PALETTE[board[r][c]])) <=
+              sum((a - b) ** 2 for a, b in zip(img.getpixel(pos(r, c)), NIGHT_PALETTE[board[r][c]]))]
+    check(-1 not in sum(board, []) and not darker, f"dark theme: dots use the lighter colors ({board}, day colors at {darker})")
+    shot("22-game-dark", img)
+
+    level = set_night(False)
+    check(level > 200, f"switching back in the game: background is light ({level})")
+    nodes = wait_until(lambda n: "score_value" in n)
+    check("resume" not in nodes, "theme switch: game continues without pause menu")
+    check(text(nodes, "score_value") == score, f"theme switch keeps the score ({text(nodes, 'score_value')} == {score})")
+    check(read_board(screencap(), pos) == board, "theme switch keeps the board (now in the day colors)")
+    shot("23-game-light")
+    leave_game()
+
+    # Fixed in the settings: dark with a light device, light with a dark device.
+    nodes = choose_theme("theme_dark")
+    for rid in ("theme_system", "theme_light", "theme_dark"):
+        check(rid in nodes, f"settings show {rid}")
+    check(wait_background(True) <= 8, f"design fixed to dark: settings turn black ({background()})")
+    shot("24-settings-dark")
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    check(wait_background(True) <= 8, f"design fixed to dark: menu below the settings turns black ({background()})")
+    sh("cmd uimode night yes")
+    choose_theme("theme_light")
+    check(wait_background(False) > 200, f"design fixed to light ignores the device's dark theme ({background()})")
+    choose_theme("theme_system", from_menu=False)
+    check(wait_background(True) <= 8, f"design like the device: dark again ({background()})")
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    set_night(False)
+
+
+def set_patterns(on):
+    """Switches the patterns on the dots in the settings, back in the menu afterwards."""
+    open_settings()
+    nodes = settings_view("patterns_switch")
+    if "patterns_switch" in nodes and ('checked="true"' in ET.tostring(nodes["patterns_switch"]).decode()) != on:
+        tap(nodes["patterns_switch"])
+    nodes = wait_until(lambda n: "patterns_switch" in n and
+                       ('checked="true"' in ET.tostring(n["patterns_switch"]).decode()) == on)
+    ok = "patterns_switch" in nodes and ('checked="true"' in ET.tostring(nodes["patterns_switch"]).decode()) == on
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    return ok
+
+
+def patterns_test():
+    """Patterns on the dots (accessibility), switched on separately: the same saved
+    board shows each color's pattern, red stays plain."""
+    nodes = wait_for("mode_endless")
+    tap(nodes["mode_endless"])
+    nodes = wait_for("game_view")
+    pos = geometry(nodes)
+    board = read_board(screencap(), pos)
+    leave_game()
+    check(set_patterns(True), "patterns switch turns on")
+
+    tap(wait_for("mode_endless")["mode_endless"])
+    wait_for("game_view")
+    radius = (pos(0, 1)[0] - pos(0, 0)[0]) * 0.24
+    # Where each pattern darkens the dot: stripes, spots and crosshatch cover the center,
+    # rings the outer ring.
+    probe = {3: 0.62}
+
+    def wrong_dots(img):
+        wrong = []
+        for r in range(ROWS):
+            for c in range(COLS):
+                k = board[r][c]
+                if k < 0:
+                    continue
+                x, y = pos(r, c)
+                px = img.getpixel((int(x + probe.get(k, 0) * radius), y))
+                darker = sum(PALETTE[k]) - sum(px) > 60 and max(px) < max(PALETTE[k]) - 30
+                plain = sum((p - q) ** 2 for p, q in zip(px, PALETTE[k])) < 3 * 30 ** 2
+                if (k == 0 and not plain) or (k != 0 and not darker):
+                    wrong.append((r, c, k, px))
+        return wrong
+
+    end = time.time() + 10  # the dots drop in first
+    while True:
+        img = screencap()
+        wrong = wrong_dots(img)
+        if not wrong or time.time() > end:
+            break
+        time.sleep(0.5)
+    shot("25-patterns", img)
+    check(-1 not in sum(board, []) and not wrong, f"each color shows its pattern, red plain ({wrong[:4]})")
+    leave_game()
+    check(set_patterns(False), "patterns switch turns off")
+
+
 def launch():
     """Starts the app the way the launcher icon does."""
     sh(f"monkey -p {PKG} -c android.intent.category.LAUNCHER 1")
@@ -862,6 +1038,33 @@ def crash_log():
     return "\n".join(l for b in ours for l in b[:15])
 
 
+def smoke():
+    """Quick check for draft pull requests: the app installs, starts, plays a few moves
+    and leaves the game again without a crash or ANR."""
+    nodes = dump()
+    for rid in ("mode_timed", "mode_moves", "mode_endless", "settings_button"):
+        check(rid in nodes, f"menu shows {rid}")
+    shot("01-menu")
+    if "mode_moves" not in nodes:
+        return finish()
+    tap(nodes["mode_moves"])
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return finish()
+    check(text(nodes, "limit_value") == "30", f"moves start at 30 (got {text(nodes, 'limit_value')})")
+    check(text(nodes, "score_value") == "0", "score starts at 0")
+    shot("02-board")
+    play_moves(5, "smoke", moves_left=30)
+    nodes = wait_until(lambda n: text(n, "limit_value") == "25")
+    check(text(nodes, "limit_value") == "25", f"5 moves played ({text(nodes, 'limit_value')} left)")
+    leave_game()
+    check("mode_moves" in wait_for("mode_moves"), "back in the menu")
+    crashes = crash_log()
+    check(not crashes, "no crash" + (f":\n{crashes}" if crashes else ""))
+    check_anrs("smoke test")
+    return finish()
+
+
 def main():
     print(f"device API {SDK}")
     adb("logcat", "-c")
@@ -871,6 +1074,8 @@ def main():
     # launcher icon later must still return to the running game.
     sh(f"am start -W -n {PKG}/.MainActivity")
     time.sleep(2)
+    if SMOKE:
+        return smoke()
 
     nodes = dump()
     for rid in ("mode_timed", "mode_moves", "mode_endless", "settings_button", "difficulty_summary"):
@@ -994,6 +1199,8 @@ def main():
     settings_test()
     vibration_test()
     powerup_test()
+    dark_mode_test()
+    patterns_test()
 
     crashes = crash_log()
     check(not crashes, "no crash during scripted play" + (f":\n{crashes}" if crashes else ""))
@@ -1020,7 +1227,8 @@ def finish():
     # Annotations are cut at 4 KB: list failures and the non-repetitive checks only.
     shown = [r for r in results if not re.match(r"ok   \w+ move \d+", r)]
     total = sum(1 for r in results if not r.startswith("info "))
-    annotate("notice", f"API {SDK}: {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
+    suite = "smoke test" if SMOKE else "full suite"
+    annotate("notice", f"API {SDK} ({suite}): {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
     return 1 if failures else 0
 
 
