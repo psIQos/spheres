@@ -67,6 +67,41 @@
             android:layout_marginBottom="8dp"
             android:background="@color/divider" />
 
+        <TextView
+            style="@style/HudLabel"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:text="@string/settings_theme" />
+
+        <RadioGroup
+            android:id="@+id/theme_group"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <RadioButton
+                android:id="@+id/theme_system"
+                style="@style/ThemeOption"
+                android:text="@string/theme_system" />
+
+            <RadioButton
+                android:id="@+id/theme_light"
+                style="@style/ThemeOption"
+                android:text="@string/theme_light" />
+
+            <RadioButton
+                android:id="@+id/theme_dark"
+                style="@style/ThemeOption"
+                android:text="@string/theme_dark" />
+        </RadioGroup>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="@color/divider" />
+
         <Switch
             android:id="@+id/sound_switch"
             style="@style/SettingsSwitch"

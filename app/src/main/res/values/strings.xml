@@ -33,6 +33,10 @@
     <string name="settings">Settings</string>
     <string name="settings_difficulty">Difficulty</string>
     <string name="difficulty_details">%1$d colors · %2$d×%2$d · %3$d s · %4$d moves</string>
+    <string name="settings_theme">Design</string>
+    <string name="theme_system">Like the device</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
     <string name="settings_sound">Sound</string>
     <string name="settings_vibration">Vibration</string>
     <string name="settings_records">Records</string>

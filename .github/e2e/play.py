@@ -26,6 +26,9 @@ os.makedirs(OUT, exist_ok=True)
 # Must match game/Palette in GameView.kt.
 PALETTE = [(0xEC, 0x5B, 0x57), (0xF4, 0xC8, 0x42), (0x83, 0xD6, 0x6A), (0x5C, 0xA8, 0xEC), (0x9E, 0x6C, 0xDB),
            (0x27, 0xB9, 0xA6)]
+# Lighter dots of the dark design (Palette.nightDots).
+NIGHT_PALETTE = [(0xFF, 0x7A, 0x72), (0xFF, 0xD5, 0x4F), (0x8F, 0xE5, 0x7A), (0x62, 0xB6, 0xFF), (0xC0, 0x8C, 0xFF),
+                 (0x34, 0xD9, 0xC3)]
 # Board of the difficulty being played (see Difficulty in GameMode.kt).
 ROWS = COLS = 6
 COLORS = 5
@@ -152,15 +155,15 @@ def geometry(nodes):
     return lambda row, col: (int(ox + (col + 0.5) * cell), int(oy + (row + 0.5) * cell))
 
 
-def read_board(img, pos):
+def read_board(img, pos, palette=PALETTE, tolerance=40):
     grid = []
     for r in range(ROWS):
         row = []
         for c in range(COLS):
             px = img.getpixel(pos(r, c))
-            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in PALETTE[:COLORS]]
+            d = [sum((a - b) ** 2 for a, b in zip(px, p)) for p in palette[:COLORS]]
             k = min(range(COLORS), key=d.__getitem__)
-            row.append(k if d[k] < 3 * 40 ** 2 else -1)
+            row.append(k if d[k] < 3 * tolerance ** 2 else -1)
         grid.append(row)
     return grid
 
@@ -382,7 +385,9 @@ def open_settings():
 
 
 def choose_difficulty(rid):
-    nodes = open_settings()
+    nodes = dump()
+    if rid not in nodes:
+        nodes = open_settings()
     if rid in nodes:
         tap(nodes[rid])
     time.sleep(0.5)
@@ -849,45 +854,82 @@ def background(img=None):
     return sum(img.getpixel((4, img.height // 2))) // 3
 
 
-def set_night(on):
-    """Switches the device's dark theme and waits until the app shows it."""
-    sh(f"cmd uimode night {'yes' if on else 'no'}")
-    end = time.time() + 15
+def wait_background(dark, timeout=15):
+    """Waits until the app shows the dark (or light) design; returns the brightness."""
+    end = time.time() + timeout
     while time.time() < end:
         level = background()
-        if (level < 80) == on:
+        if (level < 80) == dark:
             return level
         time.sleep(0.5)
     return background()
 
 
+def set_night(on):
+    """Switches the device's dark theme and waits until the app shows it."""
+    sh(f"cmd uimode night {'yes' if on else 'no'}")
+    return wait_background(on)
+
+
+def choose_theme(rid):
+    """Picks a design in the settings; the screen rebuilds itself with it."""
+    nodes = open_settings()
+    if rid in nodes:
+        tap(nodes[rid])
+    nodes = wait_until(lambda n: rid in n and 'checked="true"' in ET.tostring(n[rid]).decode())
+    return nodes
+
+
 def dark_mode_test():
-    """Dark mode follows the device setting (issue #22), also in a running game."""
+    """Dark design (issue #22): follows the device setting, also in a running game, and
+    can be fixed to light or dark in the settings."""
     nodes = wait_for("mode_endless")
     level = set_night(True)
-    check(level < 80, f"dark theme: menu background is dark ({level})")
-    shot("17-menu-dark")
+    check(level <= 8, f"dark theme: menu background is black ({level})")
+    shot("21-menu-dark")
 
     tap(wait_for("mode_endless")["mode_endless"])
     nodes = wait_for("game_view")
-    level = background()
-    check(level < 80, f"dark theme: game background is dark ({level})")
+    check(background() <= 8, f"dark theme: game background is black ({background()})")
     one_move()  # a touched game, so that it is saved
     nodes = dump()
     pos = geometry(nodes)
     score = text(nodes, "score_value")
-    board = read_board(screencap(), pos)
-    shot("18-game-dark")
+    img = screencap()
+    board = read_board(img, pos, NIGHT_PALETTE, tolerance=20)
+    # Each dot nearer to its dark design color than to its day color.
+    darker = [(r, c) for r in range(ROWS) for c in range(COLS) if board[r][c] >= 0 and
+              sum((a - b) ** 2 for a, b in zip(img.getpixel(pos(r, c)), PALETTE[board[r][c]])) <=
+              sum((a - b) ** 2 for a, b in zip(img.getpixel(pos(r, c)), NIGHT_PALETTE[board[r][c]]))]
+    check(-1 not in sum(board, []) and not darker, f"dark theme: dots use the lighter colors ({board}, day colors at {darker})")
+    shot("22-game-dark", img)
 
     level = set_night(False)
     check(level > 200, f"switching back in the game: background is light ({level})")
     nodes = wait_until(lambda n: "score_value" in n)
     check("resume" not in nodes, "theme switch: game continues without pause menu")
     check(text(nodes, "score_value") == score, f"theme switch keeps the score ({text(nodes, 'score_value')} == {score})")
-    after = read_board(screencap(), pos)
-    check(after == board and -1 not in sum(board, []), "theme switch keeps the board")
-    shot("19-game-light")
+    check(read_board(screencap(), pos) == board, "theme switch keeps the board (now in the day colors)")
+    shot("23-game-light")
     leave_game()
+
+    # Fixed in the settings: dark with a light device, light with a dark device.
+    nodes = choose_theme("theme_dark")
+    for rid in ("theme_system", "theme_light", "theme_dark"):
+        check(rid in nodes, f"settings show {rid}")
+    check(wait_background(True) <= 8, f"design fixed to dark: settings turn black ({background()})")
+    shot("24-settings-dark")
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    check(wait_background(True) <= 8, f"design fixed to dark: menu below the settings turns black ({background()})")
+    sh("cmd uimode night yes")
+    choose_theme("theme_light")
+    check(wait_background(False) > 200, f"design fixed to light ignores the device's dark theme ({background()})")
+    choose_theme("theme_system")
+    check(wait_background(True) <= 8, f"design like the device: dark again ({background()})")
+    sh("input keyevent 4")
+    wait_for("mode_endless")
+    set_night(False)
 
 
 def launch():

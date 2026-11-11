@@ -1,12 +1,11 @@
 package com.psiqos.spheres
 
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.TextView
 
-class MainActivity : Activity() {
+class MainActivity : ThemedActivity() {
 
     private val modes = listOf(
         Triple(GameMode.TIMED, R.id.mode_timed, R.id.best_timed),

@@ -112,6 +112,12 @@ object Prefs {
     fun setVibrationEnabled(context: Context, enabled: Boolean) =
         prefs(context).edit().putBoolean("vibration", enabled).apply()
 
+    /** Light, dark or the device's design. */
+    fun themeMode(context: Context): ThemeMode = ThemeMode.parse(prefs(context).getString("theme", null))
+
+    fun setThemeMode(context: Context, mode: ThemeMode) =
+        prefs(context).edit().putString("theme", mode.name).apply()
+
     fun soundEnabled(context: Context): Boolean = prefs(context).getBoolean("sound", true)
 
     fun setSoundEnabled(context: Context, enabled: Boolean) =

@@ -433,7 +433,23 @@ object Palette {
         0xFF27B9A6.toInt(), // teal (hard only), in the widest hue gap between green and blue
     )
 
-    fun dot(index: Int): Int = dots[index.mod(dots.size)]
+    /** Lighter variants for the dark design, so that every dot stands out on black. */
+    private val nightDots = intArrayOf(
+        0xFFFF7A72.toInt(), // red
+        0xFFFFD54F.toInt(), // yellow
+        0xFF8FE57A.toInt(), // green
+        0xFF62B6FF.toInt(), // blue
+        0xFFC08CFF.toInt(), // purple
+        0xFF34D9C3.toInt(), // teal
+    )
+
+    /** Whether the dark design is shown; set by each screen before it builds its views. */
+    var night = false
+
+    fun dot(index: Int): Int = colors(night).let { it[index.mod(it.size)] }
+
+    /** The dot colors of the light or dark design. */
+    fun colors(night: Boolean): IntArray = if (night) nightDots else dots
 
     fun withAlpha(color: Int, alpha: Int): Int =
         Color.argb(alpha.coerceIn(0, 255), Color.red(color), Color.green(color), Color.blue(color))

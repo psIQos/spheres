@@ -1,6 +1,5 @@
 package com.psiqos.spheres
 
-import android.app.Activity
 import android.app.AlertDialog
 import android.os.Bundle
 import android.text.SpannableString
@@ -13,12 +12,18 @@ import android.widget.Switch
 import android.widget.Toast
 import com.psiqos.spheres.game.Haptics
 
-class SettingsActivity : Activity() {
+class SettingsActivity : ThemedActivity() {
 
     private val options = mapOf(
         Difficulty.EASY to R.id.difficulty_easy,
         Difficulty.NORMAL to R.id.difficulty_normal,
         Difficulty.HARD to R.id.difficulty_hard,
+    )
+
+    private val themes = mapOf(
+        ThemeMode.SYSTEM to R.id.theme_system,
+        ThemeMode.LIGHT to R.id.theme_light,
+        ThemeMode.DARK to R.id.theme_dark,
     )
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +39,15 @@ class SettingsActivity : Activity() {
         group.check(options.getValue(Prefs.difficulty(this)))
         group.setOnCheckedChangeListener { _, checkedId ->
             options.entries.firstOrNull { it.value == checkedId }?.let { Prefs.setDifficulty(this, it.key) }
+        }
+
+        val themeGroup = findViewById<RadioGroup>(R.id.theme_group)
+        themeGroup.check(themes.getValue(Prefs.themeMode(this)))
+        themeGroup.setOnCheckedChangeListener { _, checkedId ->
+            themes.entries.firstOrNull { it.value == checkedId }?.let {
+                Prefs.setThemeMode(this, it.key)
+                recreate() // show the new design right away
+            }
         }
 
         findViewById<Switch>(R.id.sound_switch).apply {

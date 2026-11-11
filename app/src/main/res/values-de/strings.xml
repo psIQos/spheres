@@ -31,6 +31,10 @@
     <string name="settings">Einstellungen</string>
     <string name="settings_difficulty">Schwierigkeit</string>
     <string name="difficulty_details">%1$d Farben · %2$d×%2$d · %3$d s · %4$d Züge</string>
+    <string name="settings_theme">Design</string>
+    <string name="theme_system">Wie das Gerät</string>
+    <string name="theme_light">Hell</string>
+    <string name="theme_dark">Dunkel</string>
     <string name="settings_sound">Ton</string>
     <string name="settings_vibration">Vibration</string>
     <string name="settings_records">Rekorde</string>
