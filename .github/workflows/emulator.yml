@@ -1,6 +1,11 @@
 name: Emulator test
 
-# Like Build APK: pull requests against main, main itself, or a manual run.
+# Two suites:
+# - smoke: API 35 only, a short play-through (install, menu, a few moves, no crash or
+#   ANR). Runs for draft pull requests, so feature work gets quick feedback.
+# - full: API 26 and 35, every check of play.py plus the monkey test. Runs for pull
+#   requests that are ready for review (required before merging), on main, before a
+#   tested release (called by Build APK) and manually.
 on:
   push:
     branches: [main]
@@ -8,29 +13,59 @@ on:
   pull_request:
     branches: [main]
     paths-ignore: ["**.md"]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
+    inputs:
+      suite:
+        description: "smoke (API 35, short) or full (API 26 and 35, all checks)"
+        type: choice
+        options: [full, smoke]
+        default: full
+  workflow_call:
+    inputs:
+      suite:
+        type: string
+        default: full
 
 # A new push to a pull request cancels its outdated run. Runs on main, tags and
 # manual runs (releases) get a group of their own and are never cancelled.
+# (A literal prefix: called from Build APK, github.workflow names the caller.)
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  group: emulator-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
   contents: write # publish_shots.py stores screenshots as git blobs
 
 jobs:
-  emulator:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 40 # a normal run takes 24-27 min; a hang should not burn an hour
+    outputs:
+      suite: ${{ steps.plan.outputs.suite }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        env:
+          DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft }}
+          SUITE: ${{ inputs.suite }}
+        run: |
+          if [ "$DRAFT" = "true" ] || [ "$SUITE" = "smoke" ]; then
+            echo "suite=smoke" >> "$GITHUB_OUTPUT"
+            echo 'matrix={"include":[{"api-level":35,"target":"google_apis"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo "suite=full" >> "$GITHUB_OUTPUT"
+            # minSdk and targetSdk
+            echo 'matrix={"include":[{"api-level":26,"target":"default"},{"api-level":35,"target":"google_apis"}]}' >> "$GITHUB_OUTPUT"
+          fi
+
+  emulator:
+    needs: plan
+    name: emulator ${{ needs.plan.outputs.suite }} (${{ matrix.api-level }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40 # a full run takes 20-27 min; a hang should not burn an hour
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - api-level: 26 # minSdk
-            target: default
-          - api-level: 35 # targetSdk
-            target: google_apis
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
 
@@ -82,7 +117,7 @@ jobs:
           ram-size: 4096M
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: python .github/e2e/play.py app/build/outputs/apk/e2e/app-e2e.apk e2e-out
+          script: python .github/e2e/play.py app/build/outputs/apk/e2e/app-e2e.apk e2e-out --${{ needs.plan.outputs.suite }}
 
       - name: Publish screenshots
         if: always()

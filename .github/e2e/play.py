@@ -3,7 +3,10 @@
 by reading the dot colors from screenshots, checks score/HUD/game-over, then
 runs a monkey stress test and fails on any crash.
 
-Usage: play.py <apk> <output-dir>
+Usage: play.py <apk> <output-dir> [--full | --smoke]
+
+--full (default) runs every check and the monkey test; --smoke only installs the app,
+plays a few moves and checks for crashes, as quick feedback for draft pull requests.
 
 Screenshots are written to <output-dir>; publish_shots.py makes them readable
 through the GitHub API.
@@ -21,6 +24,7 @@ from PIL import Image
 
 PKG = "com.psiqos.spheres"
 APK, OUT = sys.argv[1], sys.argv[2]
+SMOKE = "--smoke" in sys.argv[3:]
 os.makedirs(OUT, exist_ok=True)
 
 # Must match game/Palette in GameView.kt.
@@ -1033,6 +1037,33 @@ def crash_log():
     return "\n".join(l for b in ours for l in b[:15])
 
 
+def smoke():
+    """Quick check for draft pull requests: the app installs, starts, plays a few moves
+    and leaves the game again without a crash or ANR."""
+    nodes = dump()
+    for rid in ("mode_timed", "mode_moves", "mode_endless", "settings_button"):
+        check(rid in nodes, f"menu shows {rid}")
+    shot("01-menu")
+    if "mode_moves" not in nodes:
+        return finish()
+    tap(nodes["mode_moves"])
+    nodes = wait_for("game_view")
+    if "game_view" not in nodes:
+        return finish()
+    check(text(nodes, "limit_value") == "30", f"moves start at 30 (got {text(nodes, 'limit_value')})")
+    check(text(nodes, "score_value") == "0", "score starts at 0")
+    shot("02-board")
+    play_moves(5, "smoke")
+    nodes = wait_until(lambda n: text(n, "limit_value") == "25")
+    check(text(nodes, "limit_value") == "25", f"5 moves played ({text(nodes, 'limit_value')} left)")
+    leave_game()
+    check("mode_moves" in wait_for("mode_moves"), "back in the menu")
+    crashes = crash_log()
+    check(not crashes, "no crash" + (f":\n{crashes}" if crashes else ""))
+    check_anrs("smoke test")
+    return finish()
+
+
 def main():
     print(f"device API {SDK}")
     adb("logcat", "-c")
@@ -1042,6 +1073,8 @@ def main():
     # launcher icon later must still return to the running game.
     sh(f"am start -W -n {PKG}/.MainActivity")
     time.sleep(2)
+    if SMOKE:
+        return smoke()
 
     nodes = dump()
     for rid in ("mode_timed", "mode_moves", "mode_endless", "settings_button", "difficulty_summary"):
@@ -1193,7 +1226,8 @@ def finish():
     # Annotations are cut at 4 KB: list failures and the non-repetitive checks only.
     shown = [r for r in results if not re.match(r"ok   \w+ move \d+", r)]
     total = sum(1 for r in results if not r.startswith("info "))
-    annotate("notice", f"API {SDK}: {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
+    suite = "smoke test" if SMOKE else "full suite"
+    annotate("notice", f"API {SDK} ({suite}): {total - len(failures)}/{total} checks passed\n" + "\n".join(shown))
     return 1 if failures else 0
 
 

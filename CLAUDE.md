@@ -24,8 +24,9 @@ Es arbeiten mehrere Claude-Sessions parallel, **eine Session pro Issue**.
   Regeln oder Workflows. Den Pull Request gegen `main` gleich nach dem ersten Push öffnen (als Entwurf,
   solange nicht fertig): Die Workflows laufen nur für Pull Requests und `main`, nicht für einzelne Branches.
   Beschreibung mit Bezug aufs Issue (`refs #5`, nicht `fixes`) und der Checkliste.
-- Ist die Umsetzung fertig, die Checkliste abgehakt und sind beide Workflows im Pull Request grün:
-  Pull Request als bereit markieren.
+- Solange der Pull Request ein Entwurf ist, läuft nur der schnelle Smoke-Test (siehe Bauen und Testen).
+  Ist die Umsetzung fertig, die Checkliste abgehakt und sind die Workflows grün: Pull Request als bereit
+  markieren. Das startet die volle Emulator-Suite; sie muss grün sein, bevor der Nutzer mergt.
 - Für Tests auf dem Handy kann von einem Branch eine Vorab-APK veröffentlicht werden (siehe Release).
   Versionsnummer dann nur auf dem eigenen Branch erhöhen; bei Konflikten in `app/build.gradle.kts`
   beim Mergen die höhere Version nehmen.
@@ -44,11 +45,18 @@ Gebaut und getestet wird über GitHub Actions:
 | Workflow | Datei | Inhalt |
 |---|---|---|
 | Build APK | `.github/workflows/build.yml` | Unit-Tests, signierte Release-APK (R8), optional Release |
-| Emulator test | `.github/workflows/emulator.yml` | `.github/e2e/play.py` auf API 26 und 35 |
+| Emulator test | `.github/workflows/emulator.yml` | `.github/e2e/play.py`: Smoke-Test oder volle Suite |
 
 Beide laufen bei Pull Requests gegen `main` (auf dem Merge-Ergebnis mit `main`), bei Pushes auf `main`
 und manuell (`workflow_dispatch`). Ein neuer Push in einen Pull Request bricht dessen alten Lauf ab;
 reine Doku-Änderungen (`*.md`) lösen keinen Lauf aus.
+
+Der Emulator-Test hat zwei Umfänge, damit die langsame volle Suite die Feature-Entwicklung nicht bremst:
+
+| Umfang | Wann | Inhalt | Dauer |
+|---|---|---|---|
+| Smoke (`--smoke`) | Pull Request als Entwurf | nur API 35: installieren, Menü, 5 Züge, kein Absturz/ANR | ~10 min |
+| Voll (`--full`) | PR bereit markiert (und jeder weitere Push), `main`, vor jedem getesteten Release, manuell | API 26 und 35, alle Prüfungen, Monkey | ~25 min |
 Der Emulator-Test nutzt den Build-Typ `e2e`: die Release-APK (R8), aber debuggable, damit `play.py`
 per `run-as` Daten setzen kann (z. B. das Punktekonto auffüllen).
 
@@ -63,17 +71,21 @@ per `run-as` Daten setzen kann (z. B. das Punktekonto auffüllen).
     (Notice „API xx: n/m checks passed“ + Fehler als Annotation)
   - Screenshots: Annotation „screenshots api-xx“ listet Git-Blob-SHAs →
     `gh api repos/psIQos/spheres/git/blobs/<sha> --jq .content | base64 -d > shot.png`
-- Vor dem Pushen: Unit-Tests grün; nach dem Pushen: beide Workflows im Pull Request abwarten.
+- Vor dem Pushen: Unit-Tests grün; nach dem Pushen: die Workflows im Pull Request abwarten.
   Ein rotes Ergebnis erst analysieren (Test- oder App-Fehler?), nie Tests abschwächen, um grün zu werden.
 
 ## Release
 
 1. `versionName` (Schema `1.0.0-beta.N`) und `versionCode` in `app/build.gradle.kts` erhöhen.
-2. Beide Workflows im Pull Request grün abwarten.
-3. *Build APK* manuell mit `release: true` starten (`workflow_dispatch`), auf dem Branch des Pull Requests
-   (Vorab-APK zum Testen) oder auf `main`: legt Tag `v<versionName>` an und
-   veröffentlicht `spheres-<version>.apk`; Versionen mit Bindestrich werden Pre-release.
-   (Tags direkt pushen ist aus Cloud-Sessions nicht erlaubt.)
+2. Die Workflows im Pull Request grün abwarten.
+3. **Den Nutzer fragen**, ob er sofort eine ungetestete Alpha möchte oder auf die volle Suite wartet.
+4. *Build APK* manuell starten (`workflow_dispatch`), auf dem Branch des Pull Requests (Vorab-APK zum
+   Testen) oder auf `main`. (Tags direkt pushen ist aus Cloud-Sessions nicht erlaubt.)
+   - `release: true`: startet die volle Emulator-Suite auf diesem Commit und veröffentlicht nur, wenn sie
+     grün ist: Tag `v<versionName>`, `spheres-<version>.apk`; Versionen mit Bindestrich werden Pre-release.
+   - `release: true` + `untested: true`: veröffentlicht sofort ohne Emulator-Tests als ungetestete Alpha
+     (Tag `v<versionName>-alpha`, `spheres-<version>-alpha.apk`, Pre-release). Die getestete Version
+     kann danach unter demselben `versionName` folgen.
 
 Die APK ist mit `app/spheres.keystore` signiert (bewusst im Repo), damit Updates ohne Deinstallation gehen.
 
