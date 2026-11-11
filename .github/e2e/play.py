@@ -888,13 +888,13 @@ def set_night(on):
     return wait_background(on)
 
 
-def choose_theme(rid):
-    """Picks a design in the settings; the screen rebuilds itself with it."""
-    nodes = open_settings()
+def choose_theme(rid, from_menu=True):
+    """Picks a design in the settings; the screen rebuilds itself with it. While it
+    rebuilds, the menu below can show for a moment, so the caller says where it is."""
+    nodes = open_settings() if from_menu else wait_for(rid, timeout=40)
     if rid in nodes:
         tap(nodes[rid])
-    nodes = wait_until(lambda n: rid in n and 'checked="true"' in ET.tostring(n[rid]).decode())
-    return nodes
+    return wait_until(lambda n: rid in n and 'checked="true"' in ET.tostring(n[rid]).decode(), timeout=40)
 
 
 def dark_mode_test():
@@ -942,7 +942,7 @@ def dark_mode_test():
     sh("cmd uimode night yes")
     choose_theme("theme_light")
     check(wait_background(False) > 200, f"design fixed to light ignores the device's dark theme ({background()})")
-    choose_theme("theme_system")
+    choose_theme("theme_system", from_menu=False)
     check(wait_background(True) <= 8, f"design like the device: dark again ({background()})")
     sh("input keyevent 4")
     wait_for("mode_endless")
