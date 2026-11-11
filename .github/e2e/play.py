@@ -271,14 +271,15 @@ def backtrack_test():
     check(after == str(before + 2), f"backtrack over {len(path)} dots back to the 2nd: score {before} -> {after}, expected +2")
 
 
-def play_moves(total, label, shots=False):
-    """Plays a whole moves-mode game on the current screen; returns the final score."""
+def play_moves(total, label, shots=False, moves_left=None):
+    """Plays [total] moves of a moves-mode game on the current screen (by default the whole
+    game, i.e. [total] moves are left); returns the final score."""
     nodes = dump()
     pos = geometry(nodes)
     expected = 0
     # A continued game does not start at 0.
     observed = int(text(nodes, "score_value") or 0)
-    moves_left = total
+    moves_left = total if moves_left is None else moves_left
     squares = 0
     took_drag_shot = False
     for move in range(total):
@@ -1053,7 +1054,7 @@ def smoke():
     check(text(nodes, "limit_value") == "30", f"moves start at 30 (got {text(nodes, 'limit_value')})")
     check(text(nodes, "score_value") == "0", "score starts at 0")
     shot("02-board")
-    play_moves(5, "smoke")
+    play_moves(5, "smoke", moves_left=30)
     nodes = wait_until(lambda n: text(n, "limit_value") == "25")
     check(text(nodes, "limit_value") == "25", f"5 moves played ({text(nodes, 'limit_value')} left)")
     leave_game()
