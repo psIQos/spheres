@@ -395,9 +395,10 @@ def open_settings():
 
 
 def choose_difficulty(rid):
-    # In the settings (perhaps still rebuilding after the last choice) or in the menu.
-    nodes = wait_until(lambda n: rid in n or "settings_button" in n)
-    if rid not in nodes:
+    # In the settings or in the menu. A screen rebuilding itself after a design change
+    # (by the last choice or the device's dark theme) cannot be read for a while.
+    nodes = wait_until(lambda n: rid in n or "settings_button" in n, timeout=40)
+    if rid not in nodes and "settings_button" in nodes:
         nodes = open_settings()
     if rid in nodes:
         tap(nodes[rid])
